@@ -1,8 +1,36 @@
 import React, { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import './Header.css';
 
-const Header = ({ onMenuClick }) => {
+const Header = ({ onMenuClick, onSearch }) => {
   const [showDropdown, setShowDropdown] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const location = useLocation();
+
+  const getSearchPlaceholder = () => {
+    const path = location.pathname;
+    if (path.includes('/teachers')) return 'Search teachers by name, subject, days...';
+    if (path.includes('/bookings')) return 'Search teachers by name, subject, time, days...';
+    if (path.includes('/subjects')) return 'Search subjects...';
+    if (path.includes('/salary')) return 'Search by teacher name, month...';
+    if (path.includes('/schedule')) return 'Search schedules...';
+    return 'Search...';
+  };
+
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    if (onSearch) {
+      onSearch(value);
+    }
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+    if (onSearch) {
+      onSearch('');
+    }
+  };
 
   return (
     <header className="top-header">
@@ -16,7 +44,17 @@ const Header = ({ onMenuClick }) => {
       <div className="header-center">
         <div className="search-bar">
           <i className="fas fa-search"></i>
-          <input type="text" placeholder="Search teachers, bookings, subjects..." />
+          <input 
+            type="text" 
+            placeholder={getSearchPlaceholder()}
+            value={searchQuery}
+            onChange={handleSearchChange}
+          />
+          {searchQuery && (
+            <button className="clear-search-btn" onClick={clearSearch}>
+              <i className="fas fa-times"></i>
+            </button>
+          )}
         </div>
       </div>
 

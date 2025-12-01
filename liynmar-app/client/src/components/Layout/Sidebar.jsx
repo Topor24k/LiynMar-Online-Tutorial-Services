@@ -6,10 +6,7 @@ const Sidebar = ({ isOpen, onToggle }) => {
   const navItems = [
     { path: '/dashboard', icon: 'fa-home', label: 'Dashboard' },
     { path: '/teachers', icon: 'fa-chalkboard-teacher', label: 'Teachers' },
-    { path: '/subjects', icon: 'fa-book', label: 'Subjects' },
     { path: '/bookings', icon: 'fa-calendar-check', label: 'Bookings' },
-    { path: '/salary', icon: 'fa-money-bill-wave', label: 'Salary Management' },
-    { path: '/schedule', icon: 'fa-calendar-alt', label: 'Schedule' },
     { path: '/analytics', icon: 'fa-chart-line', label: 'Analytics' },
     { path: '/settings', icon: 'fa-cog', label: 'Settings' },
   ];

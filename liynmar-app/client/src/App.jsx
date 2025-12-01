@@ -11,10 +11,7 @@ import Header from './components/Layout/Header';
 import Dashboard from './pages/Dashboard';
 import Teachers from './pages/Teachers';
 import TeacherProfile from './pages/TeacherProfile';
-import Subjects from './pages/Subjects';
 import Bookings from './pages/Bookings';
-import Salary from './pages/Salary';
-import Schedule from './pages/Schedule';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
 
@@ -23,9 +20,14 @@ import { AuthProvider } from './context/AuthContext';
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
+  };
+
+  const handleSearch = (query) => {
+    setSearchQuery(query);
   };
 
   return (
@@ -33,19 +35,16 @@ function App() {
       <div className="app">
         <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
         <div className={`main-content ${sidebarOpen ? '' : 'sidebar-closed'}`}>
-          <Header onMenuClick={toggleSidebar} />
+          <Header onMenuClick={toggleSidebar} onSearch={handleSearch} />
           <div className="content-wrapper">
             <Routes>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/teachers" element={<Teachers />} />
+              <Route path="/dashboard" element={<Dashboard searchQuery={searchQuery} />} />
+              <Route path="/teachers" element={<Teachers searchQuery={searchQuery} />} />
               <Route path="/teachers/:id" element={<TeacherProfile />} />
-              <Route path="/subjects" element={<Subjects />} />
-              <Route path="/bookings" element={<Bookings />} />
-              <Route path="/salary" element={<Salary />} />
-              <Route path="/schedule" element={<Schedule />} />
-              <Route path="/analytics" element={<Analytics />} />
-              <Route path="/settings" element={<Settings />} />
+              <Route path="/bookings" element={<Bookings searchQuery={searchQuery} />} />
+              <Route path="/analytics" element={<Analytics searchQuery={searchQuery} />} />
+              <Route path="/settings" element={<Settings searchQuery={searchQuery} />} />
             </Routes>
           </div>
         </div>

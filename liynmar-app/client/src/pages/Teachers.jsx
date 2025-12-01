@@ -4,7 +4,7 @@ import { useQuery } from 'react-query';
 import { teacherService } from '../services/teacherService';
 import './Teachers.css';
 
-const Teachers = () => {
+const Teachers = ({ searchQuery = '' }) => {
   const navigate = useNavigate();
   
   const { data: teachers, isLoading, error } = useQuery('teachers', teacherService.getAll);
@@ -75,6 +75,18 @@ const Teachers = () => {
 
   const teachersData = teachers || sampleTeachers;
 
+  // Filter teachers based on header search query
+  const filteredTeachers = teachersData.filter((teacher) => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      teacher.name.toLowerCase().includes(query) ||
+      teacher.subject.toLowerCase().includes(query) ||
+      teacher.usualTime.toLowerCase().includes(query) ||
+      teacher.daysAvailable.some((day) => day.toLowerCase().includes(query))
+    );
+  });
+
   const getDayBadge = (day, teacher) => {
     const dayShort = day.substring(0, 2);
     const dayName = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][
@@ -136,7 +148,7 @@ const Teachers = () => {
               </tr>
             </thead>
             <tbody>
-              {teachersData.map((teacher) => (
+              {filteredTeachers.map((teacher) => (
                 <tr key={teacher._id} className="teacher-row">
                   <td>
                     <div className="teacher-cell">
