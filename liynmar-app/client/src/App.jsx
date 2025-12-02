@@ -35,7 +35,7 @@ function App() {
       <div className="app">
         <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
         <div className={`main-content ${sidebarOpen ? '' : 'sidebar-closed'}`}>
-          <Header onMenuClick={toggleSidebar} onSearch={handleSearch} />
+          <Header onMenuClick={toggleSidebar} onSearch={handleSearch} sidebarOpen={sidebarOpen} />
           <div className="content-wrapper">
             <Routes>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />

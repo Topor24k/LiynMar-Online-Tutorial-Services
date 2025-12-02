@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import './Header.css';
 
-const Header = ({ onMenuClick, onSearch }) => {
+const Header = ({ onMenuClick, onSearch, sidebarOpen = true }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const location = useLocation();
@@ -33,7 +33,7 @@ const Header = ({ onMenuClick, onSearch }) => {
   };
 
   return (
-    <header className="top-header">
+    <header className={`top-header ${sidebarOpen ? '' : 'sidebar-closed'}`}>
       <div className="header-left">
         <button className="mobile-toggle" onClick={onMenuClick}>
           <i className="fas fa-bars"></i>

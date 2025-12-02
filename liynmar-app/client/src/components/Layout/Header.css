@@ -3,6 +3,7 @@
   top: 0;
   right: 0;
   left: var(--sidebar-width);
+  width: calc(100% - var(--sidebar-width));
   height: var(--header-height);
   background-color: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
@@ -11,7 +12,12 @@
   justify-content: space-between;
   padding: 0 var(--spacing-xl);
   z-index: 999;
-  transition: left var(--transition-base);
+  transition: left var(--transition-base), width var(--transition-base);
+}
+
+.top-header.sidebar-closed {
+  left: var(--sidebar-width-closed);
+  width: calc(100% - var(--sidebar-width-closed));
 }
 
 .header-left {

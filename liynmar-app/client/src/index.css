@@ -49,6 +49,7 @@
 
   /* Layout */
   --sidebar-width: 280px;
+  --sidebar-width-closed: 70px;
   --header-height: 70px;
 }
 
@@ -102,10 +103,12 @@ input, textarea, select {
   flex: 1;
   margin-left: var(--sidebar-width);
   transition: margin-left var(--transition-base);
+  width: calc(100% - var(--sidebar-width));
 }
 
 .main-content.sidebar-closed {
-  margin-left: 0;
+  margin-left: var(--sidebar-width-closed);
+  width: calc(100% - var(--sidebar-width-closed));
 }
 
 .content-wrapper {
