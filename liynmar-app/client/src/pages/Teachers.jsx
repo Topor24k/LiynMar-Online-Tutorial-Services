@@ -140,10 +140,10 @@ const Teachers = ({ searchQuery = '' }) => {
             <thead>
               <tr>
                 <th>Name</th>
-                <th>Subject</th>
-                <th>Days Available</th>
-                <th>Usual Time</th>
-                <th>Available Today</th>
+                <th>Major Subject</th>
+                <th>Available Days</th>
+                <th>Available Time</th>
+                <th>Status</th>
                 <th>Actions</th>
               </tr>
             </thead>
