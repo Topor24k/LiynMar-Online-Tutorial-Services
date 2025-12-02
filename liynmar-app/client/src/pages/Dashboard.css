@@ -23,6 +23,34 @@
   gap: var(--spacing-md);
 }
 
+.period-selector {
+  display: flex;
+  gap: 0;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  overflow: hidden;
+}
+
+.period-btn {
+  padding: 8px 20px;
+  border: none;
+  background-color: transparent;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.period-btn:hover {
+  background-color: rgba(139, 115, 85, 0.05);
+}
+
+.period-btn.active {
+  background-color: var(--color-primary);
+  color: white;
+}
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -96,6 +124,282 @@
   color: var(--color-info);
 }
 
+/* Graphs Grid */
+.graphs-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+}
+
+.graph-card {
+  min-height: 400px;
+}
+
+.top-teachers-card {
+  grid-column: 1 / -1;
+  min-height: auto;
+}
+
+.card-subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  display: block;
+  margin-top: 4px;
+}
+
+/* Bar Chart */
+.bar-chart {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  height: 280px;
+  gap: 12px;
+  padding: 20px 10px;
+}
+
+.bar-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.bar-wrapper {
+  width: 100%;
+  height: 240px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.bar {
+  width: 100%;
+  max-width: 60px;
+  background: linear-gradient(180deg, var(--color-primary), var(--color-secondary));
+  border-radius: 4px 4px 0 0;
+  transition: all var(--transition-base);
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 8px;
+  cursor: pointer;
+}
+
+.bar:hover {
+  opacity: 0.8;
+  transform: scaleY(1.02);
+}
+
+.bar-value {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: white;
+}
+
+.bar-label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+/* Donut Chart */
+.donut-chart {
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+}
+
+.donut-svg {
+  width: 200px;
+  height: 200px;
+}
+
+.donut-center-text {
+  font-size: 32px;
+  font-weight: 700;
+  fill: var(--color-text-primary);
+}
+
+.donut-center-label {
+  font-size: 14px;
+  fill: var(--color-text-secondary);
+}
+
+.chart-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.legend-label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+/* Horizontal Bar Chart */
+.horizontal-bar-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 10px 0;
+}
+
+.h-bar-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.h-bar-label {
+  min-width: 100px;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.h-bar-wrapper {
+  flex: 1;
+  height: 32px;
+  background-color: rgba(139, 115, 85, 0.05);
+  border-radius: var(--border-radius-md);
+  overflow: hidden;
+}
+
+.h-bar {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 12px;
+  transition: all var(--transition-base);
+  cursor: pointer;
+}
+
+.h-bar:hover {
+  opacity: 0.8;
+}
+
+.h-bar-value {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: white;
+}
+
+/* Top Teachers List */
+.top-teachers-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
+  gap: 16px;
+}
+
+.top-teacher-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background-color: rgba(139, 115, 85, 0.02);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  transition: all var(--transition-base);
+}
+
+.top-teacher-item:hover {
+  background-color: rgba(139, 115, 85, 0.05);
+  transform: translateX(4px);
+}
+
+.top-teacher-item.podium {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(255, 215, 0, 0.02));
+  border-color: rgba(255, 215, 0, 0.3);
+}
+
+.teacher-rank {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-xl);
+}
+
+.teacher-rank .fa-medal {
+  font-size: 28px;
+}
+
+.teacher-rank .fa-medal.rank-1 {
+  color: #ffd700;
+}
+
+.teacher-rank .fa-medal.rank-2 {
+  color: #c0c0c0;
+}
+
+.teacher-rank .fa-medal.rank-3 {
+  color: #cd7f32;
+}
+
+.rank-number {
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-lg);
+}
+
+.teacher-info {
+  flex: 1;
+}
+
+.teacher-name {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: 4px;
+}
+
+.teacher-subject {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.teacher-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.stat-item i {
+  font-size: 12px;
+}
+
+.stat-item.earnings {
+  font-weight: 600;
+  color: var(--color-success);
+}
+
 .dashboard-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
@@ -115,6 +419,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .card-title {
@@ -122,6 +428,13 @@
   font-weight: 600;
   color: var(--color-text-primary);
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-title i {
+  color: var(--color-primary);
 }
 
 .card-body {
@@ -139,6 +452,16 @@
   color: var(--color-secondary);
 }
 
+@media (max-width: 1200px) {
+  .graphs-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .top-teachers-list {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 768px) {
   .stats-grid {
     grid-template-columns: 1fr;
@@ -146,5 +469,21 @@
 
   .dashboard-grid {
     grid-template-columns: 1fr;
+  }
+  
+  .bar-chart {
+    height: 200px;
+  }
+  
+  .bar-wrapper {
+    height: 160px;
+  }
+  
+  .period-selector {
+    width: 100%;
+  }
+  
+  .period-btn {
+    flex: 1;
   }
 }

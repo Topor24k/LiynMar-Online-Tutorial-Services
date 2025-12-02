@@ -170,6 +170,16 @@
   cursor: default;
 }
 
+.status-icon.clickable {
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.status-icon.clickable:hover {
+  transform: scale(1.1);
+  box-shadow: var(--shadow-sm);
+}
+
 .status-icon.completed-paid {
   background-color: rgba(125, 155, 118, 0.2);
   color: var(--color-success);
@@ -203,7 +213,65 @@
 .status-icon.not-scheduled {
   background-color: transparent;
   color: var(--color-border);
-  border: none;
+  border: 1px dashed var(--color-border);
+}
+
+/* Status Cell Dropdown */
+.status-cell-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.status-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 999;
+}
+
+.status-menu {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-lg);
+  min-width: 250px;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.status-option {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+  font-size: var(--font-size-sm);
+}
+
+.status-option:hover {
+  background-color: var(--color-background);
+}
+
+.status-option .status-icon {
+  pointer-events: none;
+}
+
+.time-list, .duration-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--font-size-xs);
+}
+
+.time-list div, .duration-list div {
+  white-space: nowrap;
 }
 
 .total-earned {

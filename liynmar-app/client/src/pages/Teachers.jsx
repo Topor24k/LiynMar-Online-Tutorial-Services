@@ -19,7 +19,7 @@ const Teachers = ({ searchQuery = '' }) => {
       phone: '+63 912 345 6789',
       daysAvailable: ['Monday', 'Tuesday', 'Wednesday', 'Friday'],
       usualTime: '2:00 PM - 8:00 PM',
-      status: 'available',
+      status: 'active',
       rating: 4.9,
       bookedDays: ['Wednesday'],
     },
@@ -31,7 +31,7 @@ const Teachers = ({ searchQuery = '' }) => {
       phone: '+63 912 345 6790',
       daysAvailable: ['Monday', 'Wednesday', 'Friday'],
       usualTime: '3:00 PM - 7:00 PM',
-      status: 'unavailable',
+      status: 'inactive',
       rating: 4.8,
       bookedDays: ['Monday', 'Wednesday', 'Friday'],
     },
@@ -43,7 +43,7 @@ const Teachers = ({ searchQuery = '' }) => {
       phone: '+63 912 345 6791',
       daysAvailable: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
       usualTime: '1:00 PM - 6:00 PM',
-      status: 'available',
+      status: 'active',
       rating: 4.9,
       bookedDays: ['Tuesday', 'Thursday'],
     },
@@ -55,7 +55,7 @@ const Teachers = ({ searchQuery = '' }) => {
       phone: '+63 912 345 6792',
       daysAvailable: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
       usualTime: '4:00 PM - 9:00 PM',
-      status: 'available',
+      status: 'active',
       rating: 4.7,
       bookedDays: [],
     },
@@ -67,7 +67,7 @@ const Teachers = ({ searchQuery = '' }) => {
       phone: '+63 912 345 6793',
       daysAvailable: ['Tuesday', 'Wednesday', 'Thursday', 'Saturday'],
       usualTime: '2:00 PM - 7:00 PM',
-      status: 'available',
+      status: 'active',
       rating: 4.8,
       bookedDays: ['Tuesday', 'Wednesday', 'Thursday'],
     },
@@ -82,40 +82,11 @@ const Teachers = ({ searchQuery = '' }) => {
     return (
       teacher.name.toLowerCase().includes(query) ||
       teacher.subject.toLowerCase().includes(query) ||
-      teacher.usualTime.toLowerCase().includes(query) ||
-      teacher.daysAvailable.some((day) => day.toLowerCase().includes(query))
+      teacher.email.toLowerCase().includes(query) ||
+      teacher.phone.toLowerCase().includes(query) ||
+      teacher.status.toLowerCase().includes(query)
     );
   });
-
-  const getDayBadge = (day, teacher) => {
-    const dayShort = day.substring(0, 2);
-    const dayName = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][
-      ['M', 'T', 'W', 'Th', 'F', 'S', 'Su'].indexOf(dayShort)
-    ];
-
-    const isTeachingDay = teacher.daysAvailable.some(d => d.startsWith(dayName));
-    const isBooked = teacher.bookedDays.some(d => d.startsWith(dayName));
-
-    let className = 'day-badge ';
-    let title = '';
-
-    if (!isTeachingDay) {
-      className += 'not-available';
-      title = 'Not teaching this day';
-    } else if (isBooked) {
-      className += 'booked';
-      title = 'Booked';
-    } else {
-      className += 'available';
-      title = 'Available';
-    }
-
-    return (
-      <span className={className} title={title}>
-        {dayShort}
-      </span>
-    );
-  };
 
   return (
     <div className="teachers-page">
@@ -141,8 +112,8 @@ const Teachers = ({ searchQuery = '' }) => {
               <tr>
                 <th>Name</th>
                 <th>Major Subject</th>
-                <th>Available Days</th>
-                <th>Available Time</th>
+                <th>Contact Number</th>
+                <th>Email Address</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -160,19 +131,11 @@ const Teachers = ({ searchQuery = '' }) => {
                     </div>
                   </td>
                   <td>{teacher.subject}</td>
-                  <td>
-                    <div className="days-badges">
-                      {['M', 'T', 'W', 'Th', 'F', 'S'].map((day) => (
-                        <React.Fragment key={day}>
-                          {getDayBadge(day, teacher)}
-                        </React.Fragment>
-                      ))}
-                    </div>
-                  </td>
-                  <td>{teacher.usualTime}</td>
+                  <td>{teacher.phone}</td>
+                  <td>{teacher.email}</td>
                   <td>
                     <span className={`status-badge ${teacher.status}`}>
-                      {teacher.status === 'available' ? 'Available' : 'Not Available'}
+                      {teacher.status === 'active' ? 'Active' : 'Inactive'}
                     </span>
                   </td>
                   <td>
