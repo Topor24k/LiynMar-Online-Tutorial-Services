@@ -1,91 +1,207 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import './Dashboard.css';
 
 const Dashboard = () => {
   const [timePeriod, setTimePeriod] = useState('week'); // week, month, year
+  const [dashboardData, setDashboardData] = useState({
+    teachers: [],
+    bookings: {},
+    sessions: []
+  });
 
-  // Sample data - Replace with actual API calls
+  // Load data from localStorage
+  useEffect(() => {
+    const teachers = JSON.parse(localStorage.getItem('allTeachers') || '[]');
+    const bookings = JSON.parse(localStorage.getItem('teacherBookings') || '{}');
+    
+    // Flatten all sessions from all teachers
+    const allSessions = [];
+    Object.values(bookings).forEach(students => {
+      students.forEach(student => {
+        student.schedule.forEach(session => {
+          allSessions.push({
+            ...session,
+            studentName: student.name,
+            subject: student.subject
+          });
+        });
+      });
+    });
+
+    setDashboardData({
+      teachers,
+      bookings,
+      sessions: allSessions
+    });
+  }, []);
+
+  // Calculate shares based on duration
+  const calculateShares = (duration, totalRate) => {
+    const durationStr = duration.toLowerCase();
+    let hours = 0;
+    
+    if (durationStr.includes('30 min')) {
+      hours = 0.5;
+    } else if (durationStr.includes('1.5 hour')) {
+      hours = 1.5;
+    } else if (durationStr.includes('2 hour')) {
+      hours = 2;
+    } else if (durationStr.includes('1 hour')) {
+      hours = 1;
+    } else {
+      const match = durationStr.match(/([\d.]+)/);
+      hours = match ? parseFloat(match[1]) : 0;
+    }
+    
+    const fullHours = Math.floor(hours);
+    const remaining = hours - fullHours;
+    const teacherShare = (fullHours * 100) + (remaining >= 0.5 ? 50 : 0);
+    const companyShare = totalRate - teacherShare;
+    
+    return { teacherShare, companyShare };
+  };
+
+  // Calculate metrics based on real data
   const getMetrics = () => {
-    const metrics = {
-      week: {
-        totalTeachers: 24,
-        bookedStudents: 156,
-        sessions: 89,
-        revenue: 28500,
-        revenueChange: 8,
-      },
-      month: {
-        totalTeachers: 24,
-        bookedStudents: 620,
-        sessions: 356,
-        revenue: 114000,
-        revenueChange: 12,
-      },
-      year: {
-        totalTeachers: 24,
-        bookedStudents: 7440,
-        sessions: 4272,
-        revenue: 1368000,
-        revenueChange: 24,
+    const totalTeachers = dashboardData.teachers.length;
+    const activeTeachers = dashboardData.teachers.filter(t => t.status === 'active').length;
+    
+    // Count unique students
+    const allStudents = new Set();
+    Object.values(dashboardData.bookings).forEach(students => {
+      students.forEach(student => {
+        allStudents.add(student.id);
+      });
+    });
+    const bookedStudents = allStudents.size;
+
+    // Calculate sessions and revenue
+    const sessions = dashboardData.sessions.length;
+    let revenue = 0;
+    
+    dashboardData.sessions.forEach(session => {
+      if (session.status === 'C' || session.status === 'A') {
+        const shares = calculateShares(session.duration, session.rate);
+        revenue += shares.companyShare;
       }
+    });
+
+    return {
+      totalTeachers: activeTeachers,
+      bookedStudents,
+      sessions,
+      revenue: Math.round(revenue),
+      revenueChange: 0 // Can't calculate without historical data
     };
-    return metrics[timePeriod];
   };
 
   const metrics = getMetrics();
 
-  // Revenue Graph Data
+  // Revenue Graph Data - Using real session data
   const revenueData = useMemo(() => {
+    // For now, show aggregate data (can be enhanced with date filtering)
+    const paidSessions = dashboardData.sessions.filter(s => s.status === 'C' || s.status === 'A');
+    
     if (timePeriod === 'week') {
-      return {
-        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-        values: [4200, 3800, 4500, 4100, 5200, 3700, 3000]
-      };
+      const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+      const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      const values = days.map(day => {
+        const daySessions = paidSessions.filter(s => s.day === day);
+        return daySessions.reduce((sum, s) => {
+          const shares = calculateShares(s.duration, s.rate);
+          return sum + shares.companyShare;
+        }, 0);
+      });
+      return { labels, values };
     } else if (timePeriod === 'month') {
+      // Simulate 4 weeks
+      const weekRevenue = paidSessions.reduce((sum, s) => {
+        const shares = calculateShares(s.duration, s.rate);
+        return sum + shares.companyShare;
+      }, 0);
       return {
         labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-        values: [24000, 28000, 32000, 30000]
+        values: [weekRevenue, weekRevenue, weekRevenue, weekRevenue]
       };
     } else {
+      // Simulate 12 months
+      const monthRevenue = paidSessions.reduce((sum, s) => {
+        const shares = calculateShares(s.duration, s.rate);
+        return sum + shares.companyShare;
+      }, 0) * 4;
       return {
         labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-        values: [95000, 98000, 105000, 110000, 115000, 118000, 120000, 125000, 118000, 122000, 130000, 132000]
+        values: Array(12).fill(monthRevenue)
       };
     }
-  }, [timePeriod]);
+  }, [timePeriod, dashboardData.sessions]);
 
-  // Session Status Data
-  const sessionData = {
-    completed: 72,
-    studentAbsent: 10,
-    teacherAbsent: 7
-  };
+  // Session Status Data - Using real session data
+  const sessionData = useMemo(() => {
+    const completed = dashboardData.sessions.filter(s => s.status === 'C').length;
+    const studentAbsent = dashboardData.sessions.filter(s => s.status === 'S').length;
+    const teacherAbsent = dashboardData.sessions.filter(s => s.status === 'T').length;
+    
+    return { completed, studentAbsent, teacherAbsent };
+  }, [dashboardData.sessions]);
 
-  // Most Booked Subjects
-  const subjectData = [
-    { subject: 'Mathematics', bookings: 245 },
-    { subject: 'English', bookings: 198 },
-    { subject: 'Physics', bookings: 176 },
-    { subject: 'Chemistry', bookings: 154 },
-    { subject: 'Biology', bookings: 132 }
-  ];
+  // Most Booked Subjects - Using real booking data
+  const subjectData = useMemo(() => {
+    const subjectCounts = {};
+    
+    Object.values(dashboardData.bookings).forEach(students => {
+      students.forEach(student => {
+        const subject = student.subject;
+        subjectCounts[subject] = (subjectCounts[subject] || 0) + 1;
+      });
+    });
 
-  // Top 10 Teachers
-  const topTeachers = [
-    { rank: 1, name: 'Sarah Johnson', subject: 'Mathematics', bookings: 48, earnings: 6000 },
-    { rank: 2, name: 'Emily Santos', subject: 'English', bookings: 45, earnings: 5625 },
-    { rank: 3, name: 'Michael Chen', subject: 'Physics', bookings: 42, earnings: 5250 },
-    { rank: 4, name: 'David Martinez', subject: 'Chemistry', bookings: 39, earnings: 4875 },
-    { rank: 5, name: 'Lisa Wong', subject: 'Biology', bookings: 36, earnings: 4500 },
-    { rank: 6, name: 'James Wilson', subject: 'Mathematics', bookings: 33, earnings: 4125 },
-    { rank: 7, name: 'Maria Garcia', subject: 'English', bookings: 30, earnings: 3750 },
-    { rank: 8, name: 'Robert Kim', subject: 'Physics', bookings: 28, earnings: 3500 },
-    { rank: 9, name: 'Anna Lee', subject: 'Chemistry', bookings: 25, earnings: 3125 },
-    { rank: 10, name: 'John Smith', subject: 'Biology', bookings: 23, earnings: 2875 }
-  ];
+    return Object.entries(subjectCounts)
+      .map(([subject, bookings]) => ({ subject, bookings }))
+      .sort((a, b) => b.bookings - a.bookings)
+      .slice(0, 5);
+  }, [dashboardData.bookings]);
 
-  const maxRevenue = Math.max(...revenueData.values);
-  const maxSubject = Math.max(...subjectData.map(s => s.bookings));
+  // Top 10 Teachers - Using real booking and earnings data
+  const topTeachers = useMemo(() => {
+    const teacherStats = {};
+
+    // Calculate bookings and earnings per teacher
+    Object.entries(dashboardData.bookings).forEach(([teacherId, students]) => {
+      const teacher = dashboardData.teachers.find(t => t._id === teacherId);
+      if (!teacher) return;
+
+      let totalBookings = students.length;
+      let totalEarnings = 0;
+
+      students.forEach(student => {
+        student.schedule.forEach(session => {
+          if (session.status === 'C' || session.status === 'A') {
+            const shares = calculateShares(session.duration, session.rate);
+            totalEarnings += shares.teacherShare;
+          }
+        });
+      });
+
+      teacherStats[teacherId] = {
+        name: teacher.name,
+        subject: teacher.subject,
+        bookings: totalBookings,
+        earnings: Math.round(totalEarnings)
+      };
+    });
+
+    return Object.values(teacherStats)
+      .sort((a, b) => b.bookings - a.bookings)
+      .slice(0, 10)
+      .map((teacher, index) => ({
+        rank: index + 1,
+        ...teacher
+      }));
+  }, [dashboardData.bookings, dashboardData.teachers]);
+
+  const maxRevenue = revenueData.values.length > 0 ? Math.max(...revenueData.values) : 1;
+  const maxSubject = subjectData.length > 0 ? Math.max(...subjectData.map(s => s.bookings)) : 1;
   const totalSessions = sessionData.completed + sessionData.studentAbsent + sessionData.teacherAbsent;
 
   return (
@@ -160,7 +276,7 @@ const Dashboard = () => {
           <div className="stat-content">
             <h3 className="stat-value">₱{metrics.revenue.toLocaleString()}</h3>
             <p className="stat-label">Revenue This {timePeriod}</p>
-            <span className="stat-change positive">+{metrics.revenueChange}% from last {timePeriod}</span>
+            <span className="stat-change neutral">Company earnings</span>
           </div>
         </div>
       </div>
@@ -176,25 +292,37 @@ const Dashboard = () => {
             <span className="card-subtitle">Company revenue {timePeriod}ly overview</span>
           </div>
           <div className="card-body">
-            <div className="bar-chart">
-              {revenueData.labels.map((label, index) => (
-                <div key={index} className="bar-item">
-                  <div className="bar-wrapper">
-                    <div 
-                      className="bar"
-                      style={{ 
-                        height: `${(revenueData.values[index] / maxRevenue) * 100}%`,
-                        backgroundColor: 'var(--color-primary)'
-                      }}
-                      title={`₱${revenueData.values[index].toLocaleString()}`}
-                    >
-                      <span className="bar-value">₱{(revenueData.values[index] / 1000).toFixed(0)}k</span>
+            {revenueData.values.every(v => v === 0) ? (
+              <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-secondary)' }}>
+                <i className="fas fa-chart-line" style={{ fontSize: '3rem', marginBottom: '1rem', opacity: 0.3 }}></i>
+                <p>No revenue data available yet. Start adding bookings!</p>
+              </div>
+            ) : (
+              <div className="bar-chart">
+                {revenueData.labels.map((label, index) => (
+                  <div key={index} className="bar-item">
+                    <div className="bar-wrapper">
+                      <div 
+                        className="bar"
+                        style={{ 
+                          height: `${maxRevenue > 0 ? (revenueData.values[index] / maxRevenue) * 100 : 0}%`,
+                          backgroundColor: 'var(--color-primary)',
+                          minHeight: revenueData.values[index] > 0 ? '20px' : '0'
+                        }}
+                        title={`₱${revenueData.values[index].toLocaleString()}`}
+                      >
+                        {revenueData.values[index] > 0 && (
+                          <span className="bar-value">
+                            ₱{revenueData.values[index] >= 1000 ? (revenueData.values[index] / 1000).toFixed(0) + 'k' : revenueData.values[index].toFixed(0)}
+                          </span>
+                        )}
+                      </div>
                     </div>
+                    <span className="bar-label">{label}</span>
                   </div>
-                  <span className="bar-label">{label}</span>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -250,24 +378,31 @@ const Dashboard = () => {
             <span className="card-subtitle">Top subjects by booking count</span>
           </div>
           <div className="card-body">
-            <div className="horizontal-bar-chart">
-              {subjectData.map((item, index) => (
-                <div key={index} className="h-bar-item">
-                  <div className="h-bar-label">{item.subject}</div>
-                  <div className="h-bar-wrapper">
-                    <div 
-                      className="h-bar"
-                      style={{ 
-                        width: `${(item.bookings / maxSubject) * 100}%`,
-                        backgroundColor: `hsl(${30 + index * 20}, 60%, 55%)`
-                      }}
-                    >
-                      <span className="h-bar-value">{item.bookings}</span>
+            {subjectData.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-secondary)' }}>
+                <i className="fas fa-book" style={{ fontSize: '3rem', marginBottom: '1rem', opacity: 0.3 }}></i>
+                <p>No subject data available yet. Start adding bookings!</p>
+              </div>
+            ) : (
+              <div className="horizontal-bar-chart">
+                {subjectData.map((item, index) => (
+                  <div key={index} className="h-bar-item">
+                    <div className="h-bar-label">{item.subject}</div>
+                    <div className="h-bar-wrapper">
+                      <div 
+                        className="h-bar"
+                        style={{ 
+                          width: `${(item.bookings / maxSubject) * 100}%`,
+                          backgroundColor: `hsl(${30 + index * 20}, 60%, 55%)`
+                        }}
+                      >
+                        <span className="h-bar-value">{item.bookings}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -280,33 +415,40 @@ const Dashboard = () => {
             <span className="card-subtitle">Most booked teachers this {timePeriod}</span>
           </div>
           <div className="card-body">
-            <div className="top-teachers-list">
-              {topTeachers.map((teacher) => (
-                <div key={teacher.rank} className={`top-teacher-item ${teacher.rank <= 3 ? 'podium' : ''}`}>
-                  <div className="teacher-rank">
-                    {teacher.rank <= 3 ? (
-                      <i className={`fas fa-medal rank-${teacher.rank}`}></i>
-                    ) : (
-                      <span className="rank-number">#{teacher.rank}</span>
-                    )}
-                  </div>
-                  <div className="teacher-info">
-                    <div className="teacher-name">{teacher.name}</div>
-                    <div className="teacher-subject">{teacher.subject}</div>
-                  </div>
-                  <div className="teacher-stats">
-                    <div className="stat-item">
-                      <i className="fas fa-calendar-check"></i>
-                      <span>{teacher.bookings} bookings</span>
+            {topTeachers.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-secondary)' }}>
+                <i className="fas fa-trophy" style={{ fontSize: '3rem', marginBottom: '1rem', opacity: 0.3 }}></i>
+                <p>No teacher data available yet. Start adding bookings!</p>
+              </div>
+            ) : (
+              <div className="top-teachers-list">
+                {topTeachers.map((teacher) => (
+                  <div key={teacher.rank} className={`top-teacher-item ${teacher.rank <= 3 ? 'podium' : ''}`}>
+                    <div className="teacher-rank">
+                      {teacher.rank <= 3 ? (
+                        <i className={`fas fa-medal rank-${teacher.rank}`}></i>
+                      ) : (
+                        <span className="rank-number">#{teacher.rank}</span>
+                      )}
                     </div>
-                    <div className="stat-item earnings">
-                      <i className="fas fa-peso-sign"></i>
-                      <span>₱{teacher.earnings.toLocaleString()}</span>
+                    <div className="teacher-info">
+                      <div className="teacher-name">{teacher.name}</div>
+                      <div className="teacher-subject">{teacher.subject}</div>
+                    </div>
+                    <div className="teacher-stats">
+                      <div className="stat-item">
+                        <i className="fas fa-calendar-check"></i>
+                        <span>{teacher.bookings} bookings</span>
+                      </div>
+                      <div className="stat-item earnings">
+                        <i className="fas fa-peso-sign"></i>
+                        <span>₱{teacher.earnings.toLocaleString()}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -25,57 +25,18 @@ const Bookings = ({ searchQuery = '' }) => {
     }
   });
 
-  // Sample teachers data - showing only available/active teachers
-  const allTeachers = [
-    {
-      _id: '1',
-      name: 'Sarah Johnson',
-      subject: 'Mathematics',
-      email: 'sarah.johnson@liynmar.com',
-      phone: '+63 912 345 6789',
-      status: 'active',
-      daysAvailable: ['Monday', 'Tuesday', 'Wednesday', 'Friday'],
-      usualTime: '2:00 PM - 8:00 PM',
-      rating: 4.9,
-      hourlyRate: 125,
-    },
-    {
-      _id: '3',
-      name: 'Emily Santos',
-      subject: 'English',
-      email: 'emily.santos@liynmar.com',
-      phone: '+63 912 345 6791',
-      status: 'active',
-      daysAvailable: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
-      usualTime: '1:00 PM - 6:00 PM',
-      rating: 4.9,
-      hourlyRate: 125,
-    },
-    {
-      _id: '4',
-      name: 'David Martinez',
-      subject: 'Chemistry',
-      email: 'david.martinez@liynmar.com',
-      phone: '+63 912 345 6792',
-      status: 'active',
-      daysAvailable: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-      usualTime: '4:00 PM - 9:00 PM',
-      rating: 4.7,
-      hourlyRate: 125,
-    },
-    {
-      _id: '5',
-      name: 'Lisa Wong',
-      subject: 'Biology',
-      email: 'lisa.wong@liynmar.com',
-      phone: '+63 912 345 6793',
-      status: 'active',
-      daysAvailable: ['Tuesday', 'Wednesday', 'Thursday', 'Saturday'],
-      usualTime: '2:00 PM - 7:00 PM',
-      rating: 4.8,
-      hourlyRate: 125,
-    },
-  ];
+  // Load teachers from localStorage - only active teachers
+  const loadActiveTeachers = () => {
+    const allTeachers = JSON.parse(localStorage.getItem('allTeachers') || '[]');
+    return allTeachers.filter(teacher => teacher.status === 'active');
+  };
+
+  const [allTeachers, setAllTeachers] = useState(loadActiveTeachers());
+
+  // Reload teachers when component mounts
+  React.useEffect(() => {
+    setAllTeachers(loadActiveTeachers());
+  }, []);
 
   // Filter teachers based on header search query
   const filteredTeachers = allTeachers.filter((teacher) => {
@@ -85,9 +46,7 @@ const Bookings = ({ searchQuery = '' }) => {
       teacher.name.toLowerCase().includes(query) ||
       teacher.subject.toLowerCase().includes(query) ||
       teacher.email.toLowerCase().includes(query) ||
-      teacher.phone.toLowerCase().includes(query) ||
-      teacher.status.toLowerCase().includes(query) ||
-      teacher.daysAvailable.some((day) => day.toLowerCase().includes(query))
+      teacher.phone.toLowerCase().includes(query)
     );
   });
 
@@ -134,17 +93,50 @@ const Bookings = ({ searchQuery = '' }) => {
     });
   };
 
+  // Calculate rate based on duration
+  const calculateRate = (duration) => {
+    const dur = parseFloat(duration);
+    const fullHours = Math.floor(dur);
+    const remaining = dur - fullHours;
+    return (fullHours * 125) + (remaining >= 0.5 ? 63 : 0);
+  };
+
+  // Calculate teacher and company shares
+  const calculateShares = (duration) => {
+    const dur = parseFloat(duration);
+    const fullHours = Math.floor(dur);
+    const remaining = dur - fullHours;
+    const teacherShare = (fullHours * 100) + (remaining >= 0.5 ? 50 : 0);
+    const totalRate = calculateRate(duration);
+    const companyShare = totalRate - teacherShare;
+    return { teacherShare, companyShare, totalRate };
+  };
+
+  // Convert 24-hour time to 12-hour format
+  const formatTime = (time) => {
+    if (!time) return 'Not set';
+    const [hours, minutes] = time.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${minutes} ${ampm}`;
+  };
+
   const calculateBookingSummary = () => {
     let totalSessions = 0;
     let weeklyTotal = 0;
+    let totalTeacherShare = 0;
+    let totalCompanyShare = 0;
     const rateDetails = [];
 
     Object.entries(bookingData.weeklySchedule).forEach(([day, schedule]) => {
       if (schedule.selected) {
         totalSessions++;
         const duration = parseFloat(schedule.duration);
-        const rate = selectedTeacher.hourlyRate * duration;
-        weeklyTotal += rate;
+        const shares = calculateShares(duration);
+        weeklyTotal += shares.totalRate;
+        totalTeacherShare += shares.teacherShare;
+        totalCompanyShare += shares.companyShare;
         rateDetails.push({
           day: day.charAt(0).toUpperCase() + day.slice(1),
           duration: schedule.duration === '0.5' ? '30 mins' : 
@@ -156,16 +148,30 @@ const Bookings = ({ searchQuery = '' }) => {
                     schedule.duration === '3.5' ? '3.5 hours' :
                     schedule.duration === '4' ? '4 hours' :
                     `${schedule.duration} hours`,
-          time: schedule.time || 'Not set',
-          rate: rate
+          time: formatTime(schedule.time),
+          totalRate: shares.totalRate,
+          teacherShare: shares.teacherShare,
+          companyShare: shares.companyShare
         });
       }
     });
 
-    return { totalSessions, weeklyTotal, rateDetails };
+    return { 
+      totalSessions, 
+      weeklyTotal, 
+      totalTeacherShare, 
+      totalCompanyShare, 
+      rateDetails 
+    };
   };
 
-  const summary = selectedTeacher ? calculateBookingSummary() : { totalSessions: 0, weeklyTotal: 0, rateDetails: [] };
+  const summary = selectedTeacher ? calculateBookingSummary() : { 
+    totalSessions: 0, 
+    weeklyTotal: 0, 
+    totalTeacherShare: 0, 
+    totalCompanyShare: 0, 
+    rateDetails: [] 
+  };
 
   const handleSubmitBooking = (e) => {
     e.preventDefault();
@@ -177,7 +183,55 @@ const Bookings = ({ searchQuery = '' }) => {
       return;
     }
 
-    // Here you would send the booking data to your backend
+    // Calculate rate based on duration
+    const calculateRate = (duration) => {
+      const dur = parseFloat(duration);
+      const fullHours = Math.floor(dur);
+      const remaining = dur - fullHours;
+      return (fullHours * 125) + (remaining >= 0.5 ? 63 : 0);
+    };
+
+    // Create student object with schedule
+    const schedule = [];
+    Object.entries(bookingData.weeklySchedule).forEach(([day, data]) => {
+      if (data.selected) {
+        const duration = parseFloat(data.duration);
+        const durationText = duration === 0.5 ? '30 mins' : 
+                            duration === 1 ? '1 hour' :
+                            duration === 1.5 ? '1.5 hours' :
+                            duration === 2 ? '2 hours' :
+                            `${duration} hours`;
+        schedule.push({
+          day: day.toLowerCase(),
+          time: data.time,
+          duration: durationText,
+          rate: calculateRate(duration),
+          status: 'P' // Default to Pending
+        });
+      }
+    });
+
+    const newStudent = {
+      id: Date.now(),
+      name: bookingData.studentName,
+      parent: bookingData.parentName,
+      gradeLevel: bookingData.studentGrade,
+      subject: bookingData.subject,
+      schedule: schedule
+    };
+
+    // Get existing bookings from localStorage
+    const existingBookings = JSON.parse(localStorage.getItem('teacherBookings') || '{}');
+    
+    // Add new student to the teacher's bookings
+    if (!existingBookings[selectedTeacher._id]) {
+      existingBookings[selectedTeacher._id] = [];
+    }
+    existingBookings[selectedTeacher._id].push(newStudent);
+    
+    // Save to localStorage
+    localStorage.setItem('teacherBookings', JSON.stringify(existingBookings));
+
     console.log('Booking submitted:', {
       teacher: selectedTeacher,
       booking: bookingData,
@@ -308,22 +362,6 @@ const Bookings = ({ searchQuery = '' }) => {
                       <i className="fas fa-chalkboard-teacher"></i> Booking for {selectedTeacher.name}
                     </h3>
                     <span className="card-subtitle">{selectedTeacher.subject} Teacher</span>
-                  </div>
-                  <div className="card-body">
-                    <div className="teacher-info-box">
-                      <div className="info-item">
-                        <i className="fas fa-phone"></i>
-                        <span>{selectedTeacher.phone}</span>
-                      </div>
-                      <div className="info-item">
-                        <i className="fas fa-envelope"></i>
-                        <span>{selectedTeacher.email}</span>
-                      </div>
-                      <div className="info-item">
-                        <i className="fas fa-money-bill-wave"></i>
-                        <span>₱{selectedTeacher.hourlyRate}/hour</span>
-                      </div>
-                    </div>
                   </div>
                 </div>
 
@@ -551,7 +589,7 @@ const Bookings = ({ searchQuery = '' }) => {
                   </div>
 
                   <div className="summary-section">
-                    <h4 className="summary-subtitle">Rates Applied This Week</h4>
+                    <h4 className="summary-subtitle">Session Details</h4>
                     {summary.rateDetails.length > 0 ? (
                       summary.rateDetails.map((detail, idx) => (
                         <div key={idx} className="rate-detail">
@@ -559,7 +597,13 @@ const Bookings = ({ searchQuery = '' }) => {
                           <div className="rate-info">
                             {detail.time} • {detail.duration}
                           </div>
-                          <div className="rate-amount">₱{detail.rate.toFixed(2)}</div>
+                          <div className="rate-breakdown">
+                            <div className="rate-amount">₱{detail.totalRate.toFixed(2)}</div>
+                            <div className="rate-shares">
+                              <span className="share-teacher">Teacher: ₱{detail.teacherShare}</span>
+                              <span className="share-company">Company: ₱{detail.companyShare}</span>
+                            </div>
+                          </div>
                         </div>
                       ))
                     ) : (
@@ -568,13 +612,22 @@ const Bookings = ({ searchQuery = '' }) => {
                   </div>
 
                   <div className="summary-total">
-                    <span className="total-label">Weekly Total</span>
-                    <span className="total-amount">₱{summary.weeklyTotal.toFixed(2)}</span>
+                    <h4 className="summary-subtitle">Weekly Summary</h4>
+                    <div className="rate-detail">
+                      <div className="rate-day">Weekly Total</div>
+                      <div className="rate-breakdown">
+                        <div className="rate-amount">₱{summary.weeklyTotal.toFixed(2)}</div>
+                        <div className="rate-shares">
+                          <span className="share-teacher">Teacher: ₱{summary.totalTeacherShare.toFixed(2)}</span>
+                          <span className="share-company">Company: ₱{summary.totalCompanyShare.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="summary-note">
                     <i className="fas fa-info-circle"></i>
-                    <span>Rates are calculated based on hourly rate of ₱{selectedTeacher.hourlyRate}</span>
+                    <span>Rate: 30 mins = ₱63 | 1 hour = ₱125</span>
                   </div>
                 </div>
               </div>

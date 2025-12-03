@@ -14,13 +14,10 @@ const Sidebar = ({ isOpen, onToggle }) => {
   return (
     <aside className={`sidebar ${isOpen ? 'open' : 'closed'}`}>
       <div className="sidebar-header">
-        <div className="logo">
+        <div className="logo" onClick={onToggle}>
           <i className="fas fa-graduation-cap"></i>
           {isOpen && <span className="logo-text">LIYNMAR</span>}
         </div>
-        <button className="sidebar-toggle" onClick={onToggle}>
-          <i className="fas fa-bars"></i>
-        </button>
       </div>
 
       <nav className="sidebar-nav">

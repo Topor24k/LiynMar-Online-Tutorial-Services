@@ -670,3 +670,88 @@
     width: 100%;
   }
 }
+
+/* Booking Summary Styles */
+.rate-detail {
+  padding: var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  margin-bottom: var(--spacing-sm);
+  background-color: var(--color-background);
+}
+
+.rate-day {
+  font-weight: 600;
+  color: var(--color-primary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.rate-info {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.rate-breakdown {
+  margin-top: var(--spacing-sm);
+}
+
+.rate-amount {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-primary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.rate-shares {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-size-xs);
+  gap: var(--spacing-sm);
+}
+
+.share-teacher {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+.share-company {
+  color: #f59e0b;
+  font-weight: 600;
+}
+
+.summary-total {
+  border-top: 2px solid var(--color-border);
+  padding-top: var(--spacing-lg);
+  margin-top: var(--spacing-lg);
+}
+
+.summary-subtitle {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-md);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.summary-section {
+  margin-bottom: var(--spacing-lg);
+}
+
+.summary-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background-color: rgba(139, 115, 85, 0.05);
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin-top: var(--spacing-md);
+}
+
+.summary-note i {
+  color: var(--color-primary);
+  margin-top: 2px;
+}

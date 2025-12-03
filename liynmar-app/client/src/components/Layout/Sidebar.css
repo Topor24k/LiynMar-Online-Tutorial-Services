@@ -33,6 +33,14 @@
   font-size: var(--font-size-xl);
   font-weight: 700;
   color: var(--color-primary);
+  cursor: pointer;
+  user-select: none;
+  transition: all var(--transition-fast);
+}
+
+.logo:hover {
+  color: var(--color-secondary);
+  transform: scale(1.05);
 }
 
 .logo i {

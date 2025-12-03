@@ -8,75 +8,54 @@ const TeacherProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [weekOffset, setWeekOffset] = useState(0);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editData, setEditData] = useState({});
 
   const { data: teacher } = useQuery(['teacher', id], () => teacherService.getById(id));
 
-  // Sample data with multiple students and different schedules
-  const sampleTeacher = {
-    _id: id,
-    name: 'Sarah Johnson',
-    subject: 'Mathematics',
-    email: 'sarah.johnson@liynmar.com',
-    phone: '+63 912 345 6789',
-    facebook: 'facebook.com/sarahjohnson',
-    major: 'Mathematics Education',
-    experience: '3 years in online tutoring, specialized in Algebra and Calculus',
-    daysAvailable: ['Monday', 'Tuesday', 'Wednesday', 'Friday'],
-    usualTime: '2:00 PM - 8:00 PM',
-    status: 'active',
-    rating: 4.9,
-    students: [
-      {
-        id: 1,
-        name: 'Alex Rodriguez',
-        parent: 'Maria Rodriguez',
-        gradeLevel: 'Grade 10',
-        subject: 'Algebra',
-        schedule: [
-          { day: 'monday', time: '3:00 PM', duration: '1 hour', rate: 125, status: 'C' },
-          { day: 'wednesday', time: '3:00 PM', duration: '1 hour', rate: 125, status: 'C' },
-          { day: 'friday', time: '3:00 PM', duration: '1 hour', rate: 125, status: 'A' },
-        ]
-      },
-      {
-        id: 2,
-        name: 'Sophie Chen',
-        parent: 'Linda Chen',
-        gradeLevel: 'Grade 9',
-        subject: 'Geometry',
-        schedule: [
-          { day: 'tuesday', time: '4:00 PM', duration: '1.5 hours', rate: 187.50, status: 'C' },
-          { day: 'thursday', time: '4:00 PM', duration: '1 hour', rate: 125, status: 'P' },
-        ]
-      },
-      {
-        id: 3,
-        name: 'James Wilson',
-        parent: 'Robert Wilson',
-        gradeLevel: 'Grade 11',
-        subject: 'Calculus',
-        schedule: [
-          { day: 'monday', time: '5:00 PM', duration: '1 hour', rate: 125, status: 'S' },
-          { day: 'wednesday', time: '5:00 PM', duration: '30 mins', rate: 62.50, status: 'C' },
-          { day: 'friday', time: '5:00 PM', duration: '1 hour', rate: 125, status: 'N' },
-        ]
-      },
-      {
-        id: 4,
-        name: 'Emma Davis',
-        parent: 'Sarah Davis',
-        gradeLevel: 'Grade 8',
-        subject: 'Pre-Algebra',
-        schedule: [
-          { day: 'tuesday', time: '6:00 PM', duration: '1 hour', rate: 125, status: 'T' },
-          { day: 'thursday', time: '6:00 PM', duration: '1 hour', rate: 125, status: 'A' },
-          { day: 'saturday', time: '2:00 PM', duration: '2 hours', rate: 250, status: 'C' },
-        ]
-      },
-    ],
+  // Load teacher from localStorage
+  const loadTeacherData = () => {
+    const allTeachers = JSON.parse(localStorage.getItem('allTeachers') || '[]');
+    const foundTeacher = allTeachers.find(t => t._id === id);
+    
+    if (foundTeacher) {
+      return foundTeacher;
+    }
+    
+    // Return default teacher if not found in localStorage
+    return {
+      _id: id,
+      name: 'Sarah Johnson',
+      subject: 'Mathematics',
+      email: 'sarah.johnson@liynmar.com',
+      phone: '+63 912 345 6789',
+      facebook: 'facebook.com/sarahjohnson',
+      major: 'Mathematics Education',
+      experience: '3 years in online tutoring, specialized in Algebra and Calculus',
+      daysAvailable: ['Monday', 'Tuesday', 'Wednesday', 'Friday'],
+      usualTime: '2:00 PM - 8:00 PM',
+      status: 'active',
+      rating: 4.9,
+    };
   };
 
-  const [teacherData, setTeacherData] = useState(teacher || sampleTeacher);
+  // Load bookings from localStorage
+  const loadBookings = () => {
+    const bookings = JSON.parse(localStorage.getItem('teacherBookings') || '{}');
+    return bookings[id] || [];
+  };
+
+  const [teacherData, setTeacherData] = useState(() => {
+    const teacher = loadTeacherData();
+    return { ...teacher, students: loadBookings() };
+  });
+
+  // Reload bookings when component mounts or id changes
+  React.useEffect(() => {
+    const teacher = loadTeacherData();
+    const updatedTeacher = { ...teacher, students: loadBookings() };
+    setTeacherData(updatedTeacher);
+  }, [id]);
 
   const handleStatusChange = (studentId, dayIndex, newStatus) => {
     // Update the status
@@ -86,12 +65,84 @@ const TeacherProfile = () => {
       if (student.schedule[dayIndex]) {
         student.schedule[dayIndex].status = newStatus;
       }
+      
+      // Save to localStorage
+      const bookings = JSON.parse(localStorage.getItem('teacherBookings') || '{}');
+      bookings[id] = updated.students;
+      localStorage.setItem('teacherBookings', JSON.stringify(bookings));
+      
       return updated;
     });
   };
 
+  const handleEditClick = () => {
+    setEditData({
+      subject: teacherData.subject,
+      phone: teacherData.phone,
+      email: teacherData.email,
+      facebook: teacherData.facebook,
+      status: teacherData.status
+    });
+    setShowEditForm(true);
+  };
+
+  const handleEditInputChange = (e) => {
+    const { name, value } = e.target;
+    setEditData({
+      ...editData,
+      [name]: value
+    });
+  };
+
+  const handleSaveEdit = (e) => {
+    e.preventDefault();
+    
+    // Update teacher data
+    const updatedTeacher = {
+      ...teacherData,
+      subject: editData.subject,
+      major: editData.subject, // Keep major in sync with subject
+      phone: editData.phone,
+      email: editData.email,
+      facebook: editData.facebook,
+      status: editData.status
+    };
+    
+    setTeacherData(updatedTeacher);
+    
+    // Save to localStorage
+    const allTeachers = JSON.parse(localStorage.getItem('allTeachers') || '[]');
+    const teacherIndex = allTeachers.findIndex(t => t._id === id);
+    
+    if (teacherIndex !== -1) {
+      allTeachers[teacherIndex] = {
+        ...allTeachers[teacherIndex],
+        subject: editData.subject,
+        major: editData.subject,
+        phone: editData.phone,
+        email: editData.email,
+        facebook: editData.facebook,
+        status: editData.status
+      };
+      localStorage.setItem('allTeachers', JSON.stringify(allTeachers));
+    }
+    
+    setShowEditForm(false);
+    alert('Profile updated successfully!');
+  };
+
   const getSessionByDay = (student, dayName) => {
     return student.schedule.find(s => s.day === dayName.toLowerCase());
+  };
+
+  // Convert 24-hour time to 12-hour format
+  const formatTime = (time) => {
+    if (!time) return 'Not set';
+    const [hours, minutes] = time.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${minutes} ${ampm}`;
   };
 
   const StatusCell = ({ studentIndex, session, dayName }) => {
@@ -165,7 +216,7 @@ const TeacherProfile = () => {
         <button
           className={`status-icon ${currentStatus?.className || 'not-scheduled'} clickable`}
           onClick={() => setShowMenu(!showMenu)}
-          title={`${currentStatus?.label} - ${session.time} (${session.duration})`}
+          title={`${currentStatus?.label}\nTime: ${formatTime(session.time)}\nDuration: ${session.duration}\nRate: ₱${session.rate.toFixed(2)}`}
         >
           {session.status}
         </button>
@@ -190,11 +241,46 @@ const TeacherProfile = () => {
     );
   };
 
+  // Calculate teacher and company shares based on duration
+  const calculateShares = (duration, totalRate) => {
+    // Parse duration to get hours
+    const durationStr = duration.toLowerCase();
+    let hours = 0;
+    
+    if (durationStr.includes('30 min')) {
+      hours = 0.5;
+    } else if (durationStr.includes('1.5 hour')) {
+      hours = 1.5;
+    } else if (durationStr.includes('2 hour')) {
+      hours = 2;
+    } else if (durationStr.includes('1 hour')) {
+      hours = 1;
+    } else {
+      // Try to parse as number
+      const match = durationStr.match(/([\d.]+)/);
+      hours = match ? parseFloat(match[1]) : 0;
+    }
+    
+    // Calculate based on rate structure:
+    // 30 mins (0.5h) = 63 total (50 teacher, 13 company)
+    // 1 hour = 125 total (100 teacher, 25 company)
+    const halfHours = Math.floor(hours / 0.5);
+    const fullHours = Math.floor(hours);
+    const remaining30mins = halfHours - (fullHours * 2);
+    
+    const teacherShare = (fullHours * 100) + (remaining30mins * 50);
+    const companyShare = totalRate - teacherShare;
+    
+    return { teacherShare, companyShare };
+  };
+
   const calculateSummary = () => {
     let totalSessions = 0;
     let paidSessions = 0;
     let pendingSessions = 0;
     let totalEarned = 0;
+    let totalTeacherShare = 0;
+    let totalCompanyShare = 0;
 
     teacherData.students.forEach(student => {
       student.schedule.forEach(session => {
@@ -202,6 +288,9 @@ const TeacherProfile = () => {
         if (session.status === 'C' || session.status === 'A') {
           paidSessions++;
           totalEarned += session.rate;
+          const shares = calculateShares(session.duration, session.rate);
+          totalTeacherShare += shares.teacherShare;
+          totalCompanyShare += shares.companyShare;
         }
         if (session.status === 'P') {
           pendingSessions++;
@@ -209,10 +298,14 @@ const TeacherProfile = () => {
       });
     });
 
-    const companyShare = totalEarned * 0.25;
-    const teacherShare = totalEarned * 0.75;
-
-    return { totalSessions, paidSessions, pendingSessions, totalEarned, companyShare, teacherShare };
+    return { 
+      totalSessions, 
+      paidSessions, 
+      pendingSessions, 
+      totalEarned, 
+      companyShare: totalCompanyShare, 
+      teacherShare: totalTeacherShare 
+    };
   };
 
   const calculateStudentTotal = (student) => {
@@ -232,11 +325,88 @@ const TeacherProfile = () => {
           </button>
         </div>
         <div className="page-actions">
-          <button className="btn-secondary">
+          <button className="btn-secondary" onClick={handleEditClick}>
             <i className="fas fa-edit"></i> Edit Profile
           </button>
         </div>
       </div>
+
+      {/* Edit Profile Modal */}
+      {showEditForm && (
+        <div className="modal-overlay" onClick={() => setShowEditForm(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Edit Teacher Profile</h3>
+              <button className="btn-close" onClick={() => setShowEditForm(false)}>
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            <form onSubmit={handleSaveEdit}>
+              <div className="form-grid">
+                <div className="form-group">
+                  <label>Major Subject *</label>
+                  <input
+                    type="text"
+                    name="subject"
+                    value={editData.subject}
+                    onChange={handleEditInputChange}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Contact Number *</label>
+                  <input
+                    type="text"
+                    name="phone"
+                    value={editData.phone}
+                    onChange={handleEditInputChange}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Email Address *</label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={editData.email}
+                    onChange={handleEditInputChange}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Facebook Account</label>
+                  <input
+                    type="text"
+                    name="facebook"
+                    value={editData.facebook}
+                    onChange={handleEditInputChange}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Status *</label>
+                  <select
+                    name="status"
+                    value={editData.status}
+                    onChange={handleEditInputChange}
+                    required
+                  >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
+              </div>
+              <div className="modal-actions">
+                <button type="button" className="btn-secondary" onClick={() => setShowEditForm(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary">
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Teacher Profile Card */}
       <div className="card teacher-profile">
@@ -395,8 +565,12 @@ const TeacherProfile = () => {
             <div className="summary-value primary">₱{summary.totalEarned.toFixed(2)}</div>
           </div>
           <div className="summary-card">
-            <div className="summary-label">Company Share (25%)</div>
-            <div className="summary-value">₱{summary.companyShare.toFixed(2)}</div>
+            <div className="summary-label">Teacher Share</div>
+            <div className="summary-value success">₱{summary.teacherShare.toFixed(2)}</div>
+          </div>
+          <div className="summary-card">
+            <div className="summary-label">Company Share</div>
+            <div className="summary-value warning">₱{summary.companyShare.toFixed(2)}</div>
           </div>
         </div>
 
