@@ -44,8 +44,10 @@
 
 .header-center {
   flex: 1;
-  max-width: 500px;
-  margin: 0 var(--spacing-xl);
+  max-width: 600px;
+  display: flex;
+  justify-content: center;
+  margin: 0 auto;
 }
 
 .search-bar {
@@ -152,7 +154,7 @@
 }
 
 .profile-info {
-  text-align: right;
+  text-align: left;
   display: flex;
   flex-direction: column;
   gap: 2px;

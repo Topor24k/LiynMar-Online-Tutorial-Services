@@ -35,7 +35,6 @@ const TeacherProfile = () => {
       daysAvailable: ['Monday', 'Tuesday', 'Wednesday', 'Friday'],
       usualTime: '2:00 PM - 8:00 PM',
       status: 'active',
-      rating: 4.9,
     };
   };
 
@@ -216,7 +215,7 @@ const TeacherProfile = () => {
         <button
           className={`status-icon ${currentStatus?.className || 'not-scheduled'} clickable`}
           onClick={() => setShowMenu(!showMenu)}
-          title={`${currentStatus?.label}\nTime: ${formatTime(session.time)}\nDuration: ${session.duration}\nRate: ₱${session.rate.toFixed(2)}`}
+          title={`${currentStatus?.label}\nDate: ${session.startDate || 'Not set'}\nTime: ${formatTime(session.time)}\nDuration: ${session.duration}\nRate: ₱${session.rate.toFixed(2)}`}
         >
           {session.status}
         </button>
@@ -421,11 +420,6 @@ const TeacherProfile = () => {
             <h2>{teacherData.name}</h2>
             <p className="profile-subject">{teacherData.subject} Teacher</p>
             <div className="profile-meta">
-              <div className="profile-rating">
-                <i className="fas fa-star"></i>
-                <span>{teacherData.rating}</span>
-                <span className="rating-count">(48 reviews)</span>
-              </div>
               <div className="profile-status-inline">
                 <span className={`status-badge ${teacherData.status}`}>
                   {teacherData.status === 'active' ? 'Active' : 'Inactive'}
@@ -497,10 +491,10 @@ const TeacherProfile = () => {
           <table className="data-table schedule-table">
             <thead>
               <tr>
-                <th>Parent Name</th>
-                <th>Student Name</th>
-                <th>Grade Level</th>
-                <th>Subject</th>
+                <th>PARENT FB NAME</th>
+                <th>STUDENT NAME</th>
+                <th>GRADE LEVEL</th>
+                <th>SUBJECT FOCUS</th>
                 <th className="day-col">M</th>
                 <th className="day-col">T</th>
                 <th className="day-col">W</th>
@@ -508,7 +502,7 @@ const TeacherProfile = () => {
                 <th className="day-col">F</th>
                 <th className="day-col">Sa</th>
                 <th className="day-col">Su</th>
-                <th>Total Earnings</th>
+                <th>TOTAL EARNINGS</th>
               </tr>
             </thead>
             <tbody>
@@ -517,7 +511,7 @@ const TeacherProfile = () => {
                   <td>{student.parent}</td>
                   <td className="student-name">{student.name}</td>
                   <td>{student.gradeLevel}</td>
-                  <td>{student.subject}</td>
+                  <td>{student.subjectFocus || student.subject}</td>
                   <td className="day-status">
                     <StatusCell studentIndex={idx} session={getSessionByDay(student, 'monday')} dayName="monday" />
                   </td>

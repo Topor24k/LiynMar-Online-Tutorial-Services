@@ -2,10 +2,15 @@ import React, { useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import './Header.css';
 
-const Header = ({ onMenuClick, onSearch, sidebarOpen = true }) => {
+const Header = ({ onMenuClick, onSearch, sidebarOpen = true, onLogout }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const location = useLocation();
+
+  // Get current user from localStorage
+  const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+  const userName = currentUser.fullName || 'User';
+  const userRole = currentUser.role || 'Employee';
 
   const getSearchPlaceholder = () => {
     const path = location.pathname;
@@ -38,7 +43,6 @@ const Header = ({ onMenuClick, onSearch, sidebarOpen = true }) => {
         <button className="mobile-toggle" onClick={onMenuClick}>
           <i className="fas fa-bars"></i>
         </button>
-        <h1 className="company-name">LIYNMAR</h1>
       </div>
 
       <div className="header-center">
@@ -59,33 +63,28 @@ const Header = ({ onMenuClick, onSearch, sidebarOpen = true }) => {
       </div>
 
       <div className="header-right">
-        <div className="notification-icon">
-          <i className="fas fa-bell"></i>
-          <span className="notification-badge">0</span>
-        </div>
-
         <div className="user-profile" onClick={() => setShowDropdown(!showDropdown)}>
-          <div className="profile-info">
-            <span className="user-name">Admin User</span>
-            <span className="user-role-text">Administrator</span>
-          </div>
           <div className="profile-avatar">
             <img
-              src="https://ui-avatars.com/api/?name=Admin+User&background=8B7355&color=fff"
+              src={`https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=8B7355&color=fff`}
               alt="Profile"
             />
+          </div>
+          <div className="profile-info">
+            <span className="user-name">{userName}</span>
+            <span className="user-role-text">{userRole}</span>
           </div>
 
           {showDropdown && (
             <div className="profile-dropdown">
               <div className="dropdown-header">
                 <img
-                  src="https://ui-avatars.com/api/?name=Admin+User&background=8B7355&color=fff"
+                  src={`https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=8B7355&color=fff`}
                   alt="Profile"
                 />
                 <div>
-                  <p className="dropdown-name">Admin User</p>
-                  <p className="dropdown-email">admin@liynmar.com</p>
+                  <p className="dropdown-name">{userName}</p>
+                  <p className="dropdown-email">{currentUser.email || 'user@liynmar.com'}</p>
                 </div>
               </div>
               <div className="dropdown-menu">
@@ -99,7 +98,13 @@ const Header = ({ onMenuClick, onSearch, sidebarOpen = true }) => {
                   <i className="fas fa-question-circle"></i> Help & Support
                 </a>
                 <hr />
-                <a href="#" className="logout">
+                <a href="#" className="logout" onClick={(e) => {
+                  e.preventDefault();
+                  if (window.confirm('Are you sure you want to logout?')) {
+                    setShowDropdown(false);
+                    onLogout();
+                  }
+                }}>
                   <i className="fas fa-sign-out-alt"></i> Logout
                 </a>
               </div>

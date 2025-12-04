@@ -442,7 +442,7 @@ const Dashboard = () => {
                       </div>
                       <div className="stat-item earnings">
                         <i className="fas fa-peso-sign"></i>
-                        <span>₱{teacher.earnings.toLocaleString()}</span>
+                        <span>{teacher.earnings.toLocaleString()}</span>
                       </div>
                     </div>
                   </div>

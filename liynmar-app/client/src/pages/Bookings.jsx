@@ -4,6 +4,7 @@ import './Bookings.css';
 const Bookings = ({ searchQuery = '' }) => {
   const [selectedTeacher, setSelectedTeacher] = useState(null);
   const [showBookingForm, setShowBookingForm] = useState(false);
+  const [autoEncodeText, setAutoEncodeText] = useState('');
   
   const [bookingData, setBookingData] = useState({
     studentName: '',
@@ -11,17 +12,16 @@ const Bookings = ({ searchQuery = '' }) => {
     parentName: '',
     parentPhone: '',
     parentFacebook: '',
-    subject: '',
-    startDate: '',
+    subjectFocus: '',
     additionalNotes: '',
     weeklySchedule: {
-      monday: { selected: false, time: '', duration: '1' },
-      tuesday: { selected: false, time: '', duration: '1' },
-      wednesday: { selected: false, time: '', duration: '1' },
-      thursday: { selected: false, time: '', duration: '1' },
-      friday: { selected: false, time: '', duration: '1' },
-      saturday: { selected: false, time: '', duration: '1' },
-      sunday: { selected: false, time: '', duration: '1' },
+      monday: { selected: false, time: '', duration: '1', subject: '', startDate: '' },
+      tuesday: { selected: false, time: '', duration: '1', subject: '', startDate: '' },
+      wednesday: { selected: false, time: '', duration: '1', subject: '', startDate: '' },
+      thursday: { selected: false, time: '', duration: '1', subject: '', startDate: '' },
+      friday: { selected: false, time: '', duration: '1', subject: '', startDate: '' },
+      saturday: { selected: false, time: '', duration: '1', subject: '', startDate: '' },
+      sunday: { selected: false, time: '', duration: '1', subject: '', startDate: '' },
     }
   });
 
@@ -54,9 +54,268 @@ const Bookings = ({ searchQuery = '' }) => {
     setSelectedTeacher(teacher);
     setBookingData({
       ...bookingData,
-      subject: teacher.subject,
+      subjectFocus: teacher.subject,
     });
     setShowBookingForm(true);
+  };
+
+  // Auto-encode pasted information
+  const handleAutoEncode = (e) => {
+    const text = e.target.value;
+    setAutoEncodeText(text);
+
+    // Parse the pasted text
+    const lines = text.split('\n');
+    const data = {};
+
+    lines.forEach(line => {
+      const [key, ...valueParts] = line.split(':');
+      if (key && valueParts.length > 0) {
+        const value = valueParts.join(':').trim();
+        const keyLower = key.trim().toLowerCase();
+
+        if (keyLower.includes('parent fb name')) {
+          data.parentName = value;
+        } else if (keyLower.includes('facebook link')) {
+          data.parentFacebook = value;
+        } else if (keyLower.includes('student name')) {
+          data.studentName = value;
+        } else if (keyLower.includes('contact number')) {
+          data.parentPhone = value;
+        } else if (keyLower.includes('grade level')) {
+          data.studentGrade = value;
+        } else if (keyLower.includes('subject focus')) {
+          data.subjectFocus = value;
+        } else if (keyLower.includes('additional notes')) {
+          data.additionalNotes = value;
+        } else if (keyLower.includes('start date')) {
+          data.commonStartDate = value;
+        } else if (keyLower.includes('time available')) {
+          data.timeAvailable = value;
+        } else if (keyLower.includes('session days')) {
+          data.sessionDays = value;
+        } else if (keyLower.includes('date, time, and duration') || keyLower.includes('date, time and duration')) {
+          data.dateTimeAndDuration = value;
+        } else if (keyLower.includes('time and duration')) {
+          data.timeAndDuration = value;
+        }
+      }
+    });
+
+    // Initialize weekly schedule
+    const weeklySchedule = {
+      monday: { selected: false, time: '', duration: '1', subject: '', startDate: '' },
+      tuesday: { selected: false, time: '', duration: '1', subject: '', startDate: '' },
+      wednesday: { selected: false, time: '', duration: '1', subject: '', startDate: '' },
+      thursday: { selected: false, time: '', duration: '1', subject: '', startDate: '' },
+      friday: { selected: false, time: '', duration: '1', subject: '', startDate: '' },
+      saturday: { selected: false, time: '', duration: '1', subject: '', startDate: '' },
+      sunday: { selected: false, time: '', duration: '1', subject: '', startDate: '' },
+    };
+
+    // Helper function to convert 12-hour time to 24-hour format
+    const convertTo24Hour = (timeStr) => {
+      const time = timeStr.trim().toLowerCase();
+      let [hourMin, period] = time.split(/\s+/);
+      
+      if (!period) {
+        // Check if AM/PM is attached to time
+        if (time.includes('am')) {
+          period = 'am';
+          hourMin = time.replace('am', '').trim();
+        } else if (time.includes('pm')) {
+          period = 'pm';
+          hourMin = time.replace('pm', '').trim();
+        }
+      }
+      
+      let [hour, min] = hourMin.split(':');
+      hour = parseInt(hour);
+      min = min || '00';
+      
+      if (period === 'pm' && hour !== 12) hour += 12;
+      if (period === 'am' && hour === 12) hour = 0;
+      
+      return `${hour.toString().padStart(2, '0')}:${min.padStart(2, '0')}`;
+    };
+
+    // Helper function to parse date strings like "Dec 6" and convert to YYYY-MM-DD
+    const parseDate = (dateStr) => {
+      const currentYear = new Date().getFullYear();
+      const months = {
+        'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04',
+        'may': '05', 'jun': '06', 'jul': '07', 'aug': '08',
+        'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12'
+      };
+      
+      const match = dateStr.trim().toLowerCase().match(/(\w+)\s+(\d+)/);
+      if (match) {
+        const [, monthStr, day] = match;
+        const month = months[monthStr.substring(0, 3)];
+        if (month) {
+          return `${currentYear}-${month}-${day.padStart(2, '0')}`;
+        }
+      }
+      return '';
+    };
+
+    // Parse new "Date, Time, and Duration" format: "Dec 6, 6 AM Monday (30 mins), Dec 8, 7 AM Wednesday (1 hour)"
+    if (data.dateTimeAndDuration) {
+      const sessions = data.dateTimeAndDuration.split(',');
+      
+      // Track multiple sessions per day
+      const daySessions = {};
+      let i = 0;
+      
+      while (i < sessions.length) {
+        const sessionTrim = sessions[i].trim();
+        
+        // Try to match date pattern first: "Dec 6"
+        const dateMatch = sessionTrim.match(/^(\w+\s+\d+)$/);
+        if (dateMatch && i + 1 < sessions.length) {
+          // This is a date, get the next part which should be time, day, duration
+          const startDate = parseDate(dateMatch[1]);
+          const nextPart = sessions[i + 1].trim();
+          
+          // Match pattern: "6 AM Monday (30 mins)"
+          const sessionMatch = nextPart.match(/([\d:]+\s*(?:am|pm))\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s*\(([^)]+)\)/i);
+          
+          if (sessionMatch) {
+            const [, timeStr, dayStr, durationStr] = sessionMatch;
+            const day = dayStr.toLowerCase();
+            
+            // Convert time to 24-hour format
+            const time24 = convertTo24Hour(timeStr);
+            
+            // Parse duration
+            let duration = '1';
+            const durLower = durationStr.toLowerCase();
+            if (durLower.includes('30 min')) {
+              duration = '0.5';
+            } else if (durLower.includes('1.5 hour') || durLower.includes('1 hour 30')) {
+              duration = '1.5';
+            } else if (durLower.includes('2 hour')) {
+              duration = '2';
+            } else if (durLower.includes('1 hour')) {
+              duration = '1';
+            }
+            
+            if (!daySessions[day]) {
+              daySessions[day] = [];
+            }
+            
+            daySessions[day].push({
+              time: time24,
+              duration: duration,
+              subject: '',
+              startDate: startDate
+            });
+            
+            i += 2; // Skip both date and session parts
+            continue;
+          }
+        }
+        i++;
+      }
+      
+      // Set the schedule - use first session for each day
+      Object.keys(daySessions).forEach(day => {
+        if (weeklySchedule[day] && daySessions[day].length > 0) {
+          const firstSession = daySessions[day][0];
+          weeklySchedule[day].selected = true;
+          weeklySchedule[day].time = firstSession.time;
+          weeklySchedule[day].duration = firstSession.duration;
+          weeklySchedule[day].subject = firstSession.subject;
+          weeklySchedule[day].startDate = firstSession.startDate;
+        }
+      });
+    }
+
+    // Parse old "Time and Duration" format: "6 AM Monday (30 mins), 7 AM Wednesday (1 hour)"
+    if (data.timeAndDuration) {
+      const sessions = data.timeAndDuration.split(',');
+      
+      // Track multiple sessions per day
+      const daySessions = {};
+      
+      sessions.forEach(session => {
+        const sessionTrim = session.trim();
+        
+        // Match pattern: "6 AM Monday (30 mins) - Science" or "6:30 AM Tuesday (30 mins) - Math"
+        const match = sessionTrim.match(/([\d:]+\s*(?:am|pm))\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s*\(([^)]+)\)(?:\s*-\s*(.+))?/i);
+        
+        if (match) {
+          const [, timeStr, dayStr, durationStr, subjectStr] = match;
+          const day = dayStr.toLowerCase();
+          
+          // Convert time to 24-hour format
+          const time24 = convertTo24Hour(timeStr);
+          
+          // Parse duration
+          let duration = '1';
+          const durLower = durationStr.toLowerCase();
+          if (durLower.includes('30 min')) {
+            duration = '0.5';
+          } else if (durLower.includes('1.5 hour') || durLower.includes('1 hour 30')) {
+            duration = '1.5';
+          } else if (durLower.includes('2 hour')) {
+            duration = '2';
+          } else if (durLower.includes('1 hour')) {
+            duration = '1';
+          }
+          
+          // Extract subject if provided
+          const subject = subjectStr ? subjectStr.trim() : '';
+          
+          // For multiple sessions on the same day, we'll keep the first one in the main schedule
+          // and note the additional sessions (this is a limitation of the current UI structure)
+          if (!daySessions[day]) {
+            daySessions[day] = [];
+          }
+          
+          daySessions[day].push({
+            time: time24,
+            duration: duration,
+            subject: subject
+          });
+        }
+      });
+      
+      // Set the schedule - use first session for each day
+      Object.keys(daySessions).forEach(day => {
+        if (weeklySchedule[day] && daySessions[day].length > 0) {
+          const firstSession = daySessions[day][0];
+          weeklySchedule[day].selected = true;
+          weeklySchedule[day].time = firstSession.time;
+          weeklySchedule[day].duration = firstSession.duration;
+          weeklySchedule[day].subject = firstSession.subject;
+          if (data.commonStartDate) {
+            weeklySchedule[day].startDate = data.commonStartDate;
+          }
+          
+          // If there are multiple sessions on the same day, combine subjects
+          if (daySessions[day].length > 1) {
+            const subjects = daySessions[day].map(s => s.subject).filter(s => s).join(' & ');
+            if (subjects) {
+              weeklySchedule[day].subject = subjects;
+            }
+          }
+        }
+      });
+    }
+
+    // Update state
+    setBookingData({
+      ...bookingData,
+      studentName: data.studentName || bookingData.studentName,
+      studentGrade: data.studentGrade || bookingData.studentGrade,
+      parentName: data.parentName || bookingData.parentName,
+      parentPhone: data.parentPhone || bookingData.parentPhone,
+      parentFacebook: data.parentFacebook || bookingData.parentFacebook,
+      subjectFocus: data.subjectFocus || bookingData.subjectFocus,
+      additionalNotes: data.additionalNotes || bookingData.additionalNotes,
+      weeklySchedule
+    });
   };
 
   const handleInputChange = (e) => {
@@ -205,6 +464,8 @@ const Bookings = ({ searchQuery = '' }) => {
           day: day.toLowerCase(),
           time: data.time,
           duration: durationText,
+          subject: data.subject || bookingData.subjectFocus, // Use per-day subject or fallback to subject focus
+          startDate: data.startDate || bookingData.startDate, // Use per-day start date or fallback
           rate: calculateRate(duration),
           status: 'P' // Default to Pending
         });
@@ -216,7 +477,7 @@ const Bookings = ({ searchQuery = '' }) => {
       name: bookingData.studentName,
       parent: bookingData.parentName,
       gradeLevel: bookingData.studentGrade,
-      subject: bookingData.subject,
+      subjectFocus: bookingData.subjectFocus, // Changed from 'subject' to 'subjectFocus'
       schedule: schedule
     };
 
@@ -356,26 +617,87 @@ const Bookings = ({ searchQuery = '' }) => {
             <div className="booking-form-main">
               <form onSubmit={handleSubmitBooking}>
                 {/* Teacher Info */}
-                <div className="card">
-                  <div className="card-header">
-                    <h3 className="card-title">
-                      <i className="fas fa-chalkboard-teacher"></i> Booking for {selectedTeacher.name}
-                    </h3>
-                    <span className="card-subtitle">{selectedTeacher.subject} Teacher</span>
+                {/* Teacher Info Banner */}
+                <div className="teacher-banner">
+                  <div className="teacher-banner-content">
+                    <div className="teacher-avatar-large">
+                      <img
+                        src={`https://ui-avatars.com/api/?name=${encodeURIComponent(selectedTeacher.name)}&background=8B7355&color=fff&size=80`}
+                        alt={selectedTeacher.name}
+                      />
+                    </div>
+                    <div className="teacher-banner-info">
+                      <h2 className="teacher-banner-name">{selectedTeacher.name}</h2>
+                      <p className="teacher-banner-subject">
+                        <i className="fas fa-book"></i> {selectedTeacher.subject} Teacher
+                      </p>
+                      <div className="teacher-banner-meta">
+                        <span><i className="fas fa-envelope"></i> {selectedTeacher.email}</span>
+                        <span><i className="fas fa-phone"></i> {selectedTeacher.phone}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Student Information */}
-                <div className="card">
-                  <div className="card-header">
+                {/* Quick Auto-Fill Section */}
+                <div className="card auto-encode-card">
+                  <div className="card-header collapsible">
                     <h3 className="card-title">
-                      <i className="fas fa-user-graduate"></i> Student Information
+                      <i className="fas fa-magic"></i> Quick Auto-Fill (Optional)
                     </h3>
+                    <p className="card-description">Paste formatted booking data to auto-populate the form</p>
+                  </div>
+                  <div className="card-body compact">
+                    <div className="auto-fill-container">
+                      <div className="auto-encode-example-compact">
+                        <strong>Format Example:</strong>
+                        <code>
+                          Parent FB Name: Name<br/>
+                          Facebook Link (Optional):<br/>
+                          Student Name: Name<br/>
+                          Contact Number: 09XX<br/>
+                          Grade Level: Grade X<br/>
+                          Subject Focus: Subject<br/>
+                          Date, Time, and Duration: Dec 6, 6 AM Monday (30 mins), Dec 8, 7 AM Wednesday (1 hour)<br/>
+                          Additional Notes (Optional):
+                        </code>
+                      </div>
+                      <textarea
+                        id="autoEncodeText"
+                        value={autoEncodeText}
+                        onChange={handleAutoEncode}
+                        rows="4"
+                        placeholder="Paste booking information here to auto-fill the form..."
+                        className="auto-encode-textarea"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Contact Information - Combined */}
+                <div className="card form-section">
+                  <div className="card-header">
+                    <div className="section-header">
+                      <div>
+                        <h3 className="card-title">
+                          <i className="fas fa-users"></i> Contact Information
+                        </h3>
+                        <p className="card-description">Student and parent/guardian details</p>
+                      </div>
+                      <span className="section-badge">Step 1</span>
+                    </div>
                   </div>
                   <div className="card-body">
+                    {/* Student Info */}
+                    <div className="form-section-title">
+                      <i className="fas fa-user-graduate"></i>
+                      <span>Student Details</span>
+                    </div>
                     <div className="form-grid">
                       <div className="form-group">
-                        <label htmlFor="studentName">Student Name *</label>
+                        <label htmlFor="studentName">
+                          <i className="fas fa-user icon-label"></i> Student Name *
+                        </label>
                         <input
                           type="text"
                           id="studentName"
@@ -383,11 +705,13 @@ const Bookings = ({ searchQuery = '' }) => {
                           value={bookingData.studentName}
                           onChange={handleInputChange}
                           required
-                          placeholder="Enter student name"
+                          placeholder="Enter full name"
                         />
                       </div>
                       <div className="form-group">
-                        <label htmlFor="studentGrade">Grade Level *</label>
+                        <label htmlFor="studentGrade">
+                          <i className="fas fa-graduation-cap icon-label"></i> Grade Level *
+                        </label>
                         <select
                           id="studentGrade"
                           name="studentGrade"
@@ -411,20 +735,19 @@ const Bookings = ({ searchQuery = '' }) => {
                         </select>
                       </div>
                     </div>
-                  </div>
-                </div>
 
-                {/* Parent/Guardian Information */}
-                <div className="card">
-                  <div className="card-header">
-                    <h3 className="card-title">
-                      <i className="fas fa-user-friends"></i> Parent/Guardian Information
-                    </h3>
-                  </div>
-                  <div className="card-body">
+                    <div className="form-divider"></div>
+
+                    {/* Parent Info */}
+                    <div className="form-section-title">
+                      <i className="fas fa-user-friends"></i>
+                      <span>Parent/Guardian Details</span>
+                    </div>
                     <div className="form-grid">
                       <div className="form-group">
-                        <label htmlFor="parentName">Parent/Guardian Name *</label>
+                        <label htmlFor="parentName">
+                          <i className="fab fa-facebook icon-label"></i> Parent FB Name *
+                        </label>
                         <input
                           type="text"
                           id="parentName"
@@ -432,11 +755,13 @@ const Bookings = ({ searchQuery = '' }) => {
                           value={bookingData.parentName}
                           onChange={handleInputChange}
                           required
-                          placeholder="Enter parent/guardian name"
+                          placeholder="Facebook name"
                         />
                       </div>
                       <div className="form-group">
-                        <label htmlFor="parentPhone">Contact Number *</label>
+                        <label htmlFor="parentPhone">
+                          <i className="fas fa-phone icon-label"></i> Contact Number *
+                        </label>
                         <input
                           type="tel"
                           id="parentPhone"
@@ -444,18 +769,20 @@ const Bookings = ({ searchQuery = '' }) => {
                           value={bookingData.parentPhone}
                           onChange={handleInputChange}
                           required
-                          placeholder="+63 912 345 6789"
+                          placeholder="09XX XXX XXXX"
                         />
                       </div>
                       <div className="form-group full-width">
-                        <label htmlFor="parentFacebook">Facebook Link</label>
+                        <label htmlFor="parentFacebook">
+                          <i className="fas fa-link icon-label"></i> Facebook Profile Link
+                        </label>
                         <input
                           type="text"
                           id="parentFacebook"
                           name="parentFacebook"
                           value={bookingData.parentFacebook}
                           onChange={handleInputChange}
-                          placeholder="facebook.com/username"
+                          placeholder="https://facebook.com/username (optional)"
                         />
                       </div>
                     </div>
@@ -463,43 +790,43 @@ const Bookings = ({ searchQuery = '' }) => {
                 </div>
 
                 {/* Session Details */}
-                <div className="card">
+                <div className="card form-section">
                   <div className="card-header">
-                    <h3 className="card-title">
-                      <i className="fas fa-calendar-alt"></i> Session Details
-                    </h3>
+                    <div className="section-header">
+                      <div>
+                        <h3 className="card-title">
+                          <i className="fas fa-calendar-alt"></i> Session Schedule
+                        </h3>
+                        <p className="card-description">Configure tutoring sessions and timing</p>
+                      </div>
+                      <span className="section-badge">Step 2</span>
+                    </div>
                   </div>
                   <div className="card-body">
-                    <div className="form-grid">
-                      <div className="form-group">
-                        <label htmlFor="subject">Major Subject *</label>
-                        <input
-                          type="text"
-                          id="subject"
-                          name="subject"
-                          value={bookingData.subject}
-                          onChange={handleInputChange}
-                          required
-                          placeholder="e.g., Algebra, Grammar"
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label htmlFor="startDate">Start Date *</label>
-                        <input
-                          type="date"
-                          id="startDate"
-                          name="startDate"
-                          value={bookingData.startDate}
-                          onChange={handleInputChange}
-                          required
-                        />
-                      </div>
+                    <div className="form-group full-width">
+                      <label htmlFor="subjectFocus">
+                        <i className="fas fa-book-open icon-label"></i> Subject Focus *
+                      </label>
+                      <input
+                        type="text"
+                        id="subjectFocus"
+                        name="subjectFocus"
+                        value={bookingData.subjectFocus}
+                        onChange={handleInputChange}
+                        required
+                        placeholder="e.g., Math and Science, English Literature, etc."
+                      />
+                      <p className="form-help">Primary subjects that will be covered in the tutoring sessions</p>
                     </div>
+
+                    <div className="form-divider"></div>
 
                     {/* Weekly Schedule */}
                     <div className="form-group full-width">
-                      <label>Select Days for Sessions *</label>
-                      <p className="form-help">Different times and durations can be set for each day</p>
+                      <label className="schedule-label">
+                        <i className="fas fa-calendar-week icon-label"></i> Weekly Schedule *
+                      </label>
+                      <p className="form-help">Select days and configure session time, duration, and start date for each</p>
                       <div className="weekly-schedule">
                         {Object.entries(bookingData.weeklySchedule).map(([day, schedule]) => (
                           <div key={day} className={`day-schedule ${schedule.selected ? 'selected' : ''}`}>
@@ -539,6 +866,14 @@ const Bookings = ({ searchQuery = '' }) => {
                                     <option value="4">4 hours</option>
                                   </select>
                                 </div>
+                                <div className="detail-field">
+                                  <label>Start Date</label>
+                                  <input
+                                    type="date"
+                                    value={schedule.startDate}
+                                    onChange={(e) => handleScheduleChange(day, 'startDate', e.target.value)}
+                                  />
+                                </div>
                               </div>
                             )}
                           </div>
@@ -546,28 +881,39 @@ const Bookings = ({ searchQuery = '' }) => {
                       </div>
                     </div>
 
+                    <div className="form-divider"></div>
+
                     <div className="form-group full-width">
-                      <label htmlFor="additionalNotes">Additional Notes</label>
+                      <label htmlFor="additionalNotes">
+                        <i className="fas fa-sticky-note icon-label"></i> Additional Notes
+                      </label>
                       <textarea
                         id="additionalNotes"
                         name="additionalNotes"
                         value={bookingData.additionalNotes}
                         onChange={handleInputChange}
-                        rows="3"
-                        placeholder="Any special requirements or notes..."
+                        rows="4"
+                        placeholder="Any special requirements, learning preferences, or important information..."
                       />
+                      <p className="form-help">Optional: Include any specific needs or special considerations</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Form Actions */}
-                <div className="form-actions">
-                  <button type="button" className="btn-secondary" onClick={handleCancelBooking}>
-                    <i className="fas fa-times"></i> Cancel
-                  </button>
-                  <button type="submit" className="btn-primary">
-                    <i className="fas fa-check"></i> Confirm Booking
-                  </button>
+                <div className="form-actions-container">
+                  <p className="form-actions-note">
+                    <i className="fas fa-info-circle"></i>
+                    Please review all information before confirming the booking
+                  </p>
+                  <div className="form-actions">
+                    <button type="button" className="btn-secondary btn-large" onClick={handleCancelBooking}>
+                      <i className="fas fa-times-circle"></i> Cancel
+                    </button>
+                    <button type="submit" className="btn-primary btn-large">
+                      <i className="fas fa-check-circle"></i> Confirm Booking
+                    </button>
+                  </div>
                 </div>
               </form>
             </div>
