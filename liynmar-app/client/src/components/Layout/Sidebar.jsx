@@ -7,7 +7,7 @@ const Sidebar = ({ isOpen, onToggle }) => {
     { path: '/dashboard', icon: 'fa-home', label: 'Dashboard' },
     { path: '/teachers', icon: 'fa-chalkboard-teacher', label: 'Teachers' },
     { path: '/bookings', icon: 'fa-calendar-check', label: 'Bookings' },
-    { path: '/settings', icon: 'fa-cog', label: 'Settings' },
+    { path: '/settings', icon: 'fa-user-circle', label: 'My Profile' },
   ];
 
   return (

@@ -1,16 +1,33 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
+import { getAvatarUrl, getLocalStorage } from '../../utils/helpers';
 import './Header.css';
 
 const Header = ({ onMenuClick, onSearch, sidebarOpen = true, onLogout }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const location = useLocation();
+  const dropdownRef = useRef(null);
 
   // Get current user from localStorage
-  const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+  const currentUser = getLocalStorage('currentUser', {});
   const userName = currentUser.fullName || 'User';
   const userRole = currentUser.role || 'Employee';
+  const avatarUrl = getAvatarUrl(userName);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowDropdown(false);
+      }
+    };
+
+    if (showDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showDropdown]);
 
   const getSearchPlaceholder = () => {
     const path = location.pathname;
@@ -63,12 +80,9 @@ const Header = ({ onMenuClick, onSearch, sidebarOpen = true, onLogout }) => {
       </div>
 
       <div className="header-right">
-        <div className="user-profile" onClick={() => setShowDropdown(!showDropdown)}>
+        <div className="user-profile" onClick={() => setShowDropdown(!showDropdown)} ref={dropdownRef}>
           <div className="profile-avatar">
-            <img
-              src={`https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=8B7355&color=fff`}
-              alt="Profile"
-            />
+            <img src={avatarUrl} alt="Profile" />
           </div>
           <div className="profile-info">
             <span className="user-name">{userName}</span>
@@ -78,21 +92,15 @@ const Header = ({ onMenuClick, onSearch, sidebarOpen = true, onLogout }) => {
           {showDropdown && (
             <div className="profile-dropdown">
               <div className="dropdown-header">
-                <img
-                  src={`https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=8B7355&color=fff`}
-                  alt="Profile"
-                />
+                <img src={avatarUrl} alt="Profile" />
                 <div>
                   <p className="dropdown-name">{userName}</p>
                   <p className="dropdown-email">{currentUser.email || 'user@liynmar.com'}</p>
                 </div>
               </div>
               <div className="dropdown-menu">
-                <a href="#">
+                <a href="/settings" onClick={(e) => { e.preventDefault(); window.location.href = '/settings'; }}>
                   <i className="fas fa-user"></i> My Profile
-                </a>
-                <a href="#">
-                  <i className="fas fa-cog"></i> Settings
                 </a>
                 <a href="#">
                   <i className="fas fa-question-circle"></i> Help & Support

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getLocalStorage, setLocalStorage } from '../utils/helpers';
 import './Auth.css';
 
 const Auth = () => {
@@ -45,7 +46,7 @@ const Auth = () => {
     }
 
     // Get existing users
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
+    const users = getLocalStorage('users', []);
     
     // Check if email already exists
     if (users.some(user => user.email === signUpData.email)) {
@@ -64,10 +65,10 @@ const Auth = () => {
     };
 
     users.push(newUser);
-    localStorage.setItem('users', JSON.stringify(users));
+    setLocalStorage('users', users);
     
     // Auto login after signup
-    localStorage.setItem('currentUser', JSON.stringify(newUser));
+    setLocalStorage('currentUser', newUser);
     
     alert('Account created successfully!');
     window.location.href = '/dashboard';
@@ -83,7 +84,7 @@ const Auth = () => {
     }
 
     // Get existing users
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
+    const users = getLocalStorage('users', []);
     
     // Find user
     const user = users.find(u => u.email === signInData.email && u.password === signInData.password);
@@ -94,7 +95,7 @@ const Auth = () => {
     }
 
     // Save current user
-    localStorage.setItem('currentUser', JSON.stringify(user));
+    setLocalStorage('currentUser', user);
     
     alert('Logged in successfully!');
     window.location.href = '/dashboard';
