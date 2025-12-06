@@ -13,7 +13,6 @@ import Teachers from './pages/Teachers';
 import TeacherProfile from './pages/TeacherProfile';
 import Bookings from './pages/Bookings';
 import Analytics from './pages/Analytics';
-import Settings from './pages/Settings';
 import Auth from './pages/Auth';
 
 // Context
@@ -56,7 +55,7 @@ function App() {
       <div className="app">
         <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
         <div className={`main-content ${sidebarOpen ? '' : 'sidebar-closed'}`}>
-          <Header onMenuClick={toggleSidebar} onSearch={handleSearch} sidebarOpen={sidebarOpen} onLogout={handleLogout} />
+          <Header onMenuClick={toggleSidebar} onSearch={handleSearch} sidebarOpen={sidebarOpen} />
           <div className="content-wrapper">
             <Routes>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -65,7 +64,6 @@ function App() {
               <Route path="/teachers/:id" element={<TeacherProfile />} />
               <Route path="/bookings" element={<Bookings searchQuery={searchQuery} />} />
               <Route path="/analytics" element={<Analytics searchQuery={searchQuery} />} />
-              <Route path="/settings" element={<Settings searchQuery={searchQuery} />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </div>

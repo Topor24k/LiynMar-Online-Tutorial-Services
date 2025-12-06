@@ -1,19 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
-import { getAvatarUrl, getLocalStorage } from '../../utils/helpers';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { getLocalStorage } from '../../utils/helpers';
 import './Header.css';
 
-const Header = ({ onMenuClick, onSearch, sidebarOpen = true, onLogout }) => {
-  const [showDropdown, setShowDropdown] = useState(false);
+const Header = ({ onMenuClick, onSearch, sidebarOpen = true }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const dropdownRef = useRef(null);
 
-  // Get current user from localStorage
+  // Get current user
   const currentUser = getLocalStorage('currentUser', {});
   const userName = currentUser.fullName || 'User';
   const userRole = currentUser.role || 'Employee';
-  const avatarUrl = getAvatarUrl(userName);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -54,6 +54,13 @@ const Header = ({ onMenuClick, onSearch, sidebarOpen = true, onLogout }) => {
     }
   };
 
+  const handleLogout = () => {
+    if (window.confirm('Are you sure you want to logout?')) {
+      localStorage.removeItem('currentUser');
+      window.location.href = '/auth';
+    }
+  };
+
   return (
     <header className={`top-header ${sidebarOpen ? '' : 'sidebar-closed'}`}>
       <div className="header-left">
@@ -80,42 +87,25 @@ const Header = ({ onMenuClick, onSearch, sidebarOpen = true, onLogout }) => {
       </div>
 
       <div className="header-right">
-        <div className="user-profile" onClick={() => setShowDropdown(!showDropdown)} ref={dropdownRef}>
-          <div className="profile-avatar">
-            <img src={avatarUrl} alt="Profile" />
-          </div>
-          <div className="profile-info">
+        <div className="user-info" onClick={() => setShowDropdown(!showDropdown)} ref={dropdownRef}>
+          <div className="user-text">
             <span className="user-name">{userName}</span>
-            <span className="user-role-text">{userRole}</span>
+            <span className="user-role">{userRole}</span>
           </div>
+          <i className="fas fa-chevron-down dropdown-icon"></i>
 
           {showDropdown && (
-            <div className="profile-dropdown">
-              <div className="dropdown-header">
-                <img src={avatarUrl} alt="Profile" />
-                <div>
-                  <p className="dropdown-name">{userName}</p>
-                  <p className="dropdown-email">{currentUser.email || 'user@liynmar.com'}</p>
-                </div>
-              </div>
-              <div className="dropdown-menu">
-                <a href="/settings" onClick={(e) => { e.preventDefault(); window.location.href = '/settings'; }}>
-                  <i className="fas fa-user"></i> My Profile
-                </a>
-                <a href="#">
-                  <i className="fas fa-question-circle"></i> Help & Support
-                </a>
-                <hr />
-                <a href="#" className="logout" onClick={(e) => {
-                  e.preventDefault();
-                  if (window.confirm('Are you sure you want to logout?')) {
-                    setShowDropdown(false);
-                    onLogout();
-                  }
-                }}>
-                  <i className="fas fa-sign-out-alt"></i> Logout
-                </a>
-              </div>
+            <div className="user-dropdown">
+              <a href="#" onClick={(e) => { e.preventDefault(); navigate('/profile'); setShowDropdown(false); }}>
+                <i className="fas fa-user"></i> My Profile
+              </a>
+              <a href="#" onClick={(e) => { e.preventDefault(); navigate('/help'); setShowDropdown(false); }}>
+                <i className="fas fa-question-circle"></i> Help Center
+              </a>
+              <hr />
+              <a href="#" className="logout-link" onClick={(e) => { e.preventDefault(); handleLogout(); }}>
+                <i className="fas fa-sign-out-alt"></i> Logout
+              </a>
             </div>
           )}
         </div>

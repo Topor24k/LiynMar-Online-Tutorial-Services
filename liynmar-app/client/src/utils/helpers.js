@@ -70,3 +70,59 @@ export const formatTime = (time) => {
   const formattedHour = h % 12 || 12;
   return `${formattedHour}:${minutes} ${ampm}`;
 };
+
+/**
+ * Calculate inactive duration for teacher
+ * @param {string} lastBookingDate - Last booking date
+ * @returns {object} Inactive status and duration
+ */
+export const calculateInactiveDuration = (lastBookingDate) => {
+  if (!lastBookingDate) {
+    return { isInactive: false, duration: '' };
+  }
+
+  const now = new Date();
+  const lastDate = new Date(lastBookingDate);
+  const diffMs = now - lastDate;
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  // If more than 7 days (1 week), mark as inactive
+  if (diffDays >= 7) {
+    const years = Math.floor(diffDays / 365);
+    const remainingDaysAfterYears = diffDays % 365;
+    const weeks = Math.floor(remainingDaysAfterYears / 7);
+    const days = remainingDaysAfterYears % 7;
+
+    let duration = '';
+    if (years > 0) duration += `${years} year${years > 1 ? 's' : ''} `;
+    if (weeks > 0) duration += `${weeks} week${weeks > 1 ? 's' : ''} `;
+    if (days > 0) duration += `${days} day${days > 1 ? 's' : ''}`;
+
+    return {
+      isInactive: true,
+      duration: duration.trim() || '0 days',
+      totalDays: diffDays
+    };
+  }
+
+  return { isInactive: false, duration: '' };
+};
+
+/**
+ * Get last booking date for a teacher
+ * @param {string} teacherId - Teacher ID
+ * @returns {string|null} Last booking date
+ */
+export const getLastBookingDate = (teacherId) => {
+  const bookings = getLocalStorage('teacherBookings', {});
+  const teacherBookings = bookings[teacherId] || [];
+  
+  if (teacherBookings.length === 0) return null;
+
+  // Find the most recent booking
+  const sortedBookings = [...teacherBookings].sort((a, b) => {
+    return new Date(b.startDate) - new Date(a.startDate);
+  });
+
+  return sortedBookings[0]?.startDate || null;
+};

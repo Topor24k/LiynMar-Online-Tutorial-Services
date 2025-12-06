@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from 'react-query';
-import { teacherService } from '../services/teacherService';
 import './TeacherProfile.css';
 
 const TeacherProfile = () => {
@@ -10,8 +8,6 @@ const TeacherProfile = () => {
   const [weekOffset, setWeekOffset] = useState(0);
   const [showEditForm, setShowEditForm] = useState(false);
   const [editData, setEditData] = useState({});
-
-  const { data: teacher } = useQuery(['teacher', id], () => teacherService.getById(id));
 
   // Load teacher from localStorage
   const loadTeacherData = () => {
@@ -80,7 +76,15 @@ const TeacherProfile = () => {
       phone: teacherData.phone,
       email: teacherData.email,
       facebook: teacherData.facebook,
-      status: teacherData.status
+      status: teacherData.status,
+      jobExperience: teacherData.jobExperience || [{
+        jobTitle: '',
+        companyName: '',
+        employmentType: 'Full Time',
+        startDate: '',
+        endDate: '',
+        jobLocation: ''
+      }]
     });
     setShowEditForm(true);
   };
@@ -90,6 +94,37 @@ const TeacherProfile = () => {
     setEditData({
       ...editData,
       [name]: value
+    });
+  };
+
+  const handleJobExperienceChange = (index, field, value) => {
+    const updatedExperience = [...editData.jobExperience];
+    updatedExperience[index][field] = value;
+    setEditData({
+      ...editData,
+      jobExperience: updatedExperience
+    });
+  };
+
+  const addJobExperience = () => {
+    setEditData({
+      ...editData,
+      jobExperience: [...editData.jobExperience, {
+        jobTitle: '',
+        companyName: '',
+        employmentType: 'Full Time',
+        startDate: '',
+        endDate: '',
+        jobLocation: ''
+      }]
+    });
+  };
+
+  const removeJobExperience = (index) => {
+    const updatedExperience = editData.jobExperience.filter((_, i) => i !== index);
+    setEditData({
+      ...editData,
+      jobExperience: updatedExperience
     });
   };
 
@@ -104,7 +139,8 @@ const TeacherProfile = () => {
       phone: editData.phone,
       email: editData.email,
       facebook: editData.facebook,
-      status: editData.status
+      status: editData.status,
+      jobExperience: editData.jobExperience
     };
     
     setTeacherData(updatedTeacher);
@@ -121,7 +157,8 @@ const TeacherProfile = () => {
         phone: editData.phone,
         email: editData.email,
         facebook: editData.facebook,
-        status: editData.status
+        status: editData.status,
+        jobExperience: editData.jobExperience
       };
       localStorage.setItem('allTeachers', JSON.stringify(allTeachers));
     }
@@ -394,6 +431,89 @@ const TeacherProfile = () => {
                   </select>
                 </div>
               </div>
+
+              {/* Job Experience Section */}
+              <div className="job-experience-section">
+                <div className="section-header">
+                  <h4>Job Experience</h4>
+                  <button type="button" className="btn-add-experience" onClick={addJobExperience}>
+                    <i className="fas fa-plus"></i> Add Experience
+                  </button>
+                </div>
+
+                {editData.jobExperience && editData.jobExperience.map((exp, index) => (
+                  <div key={index} className="experience-card">
+                    <div className="experience-header">
+                      <h5>Experience {index + 1}</h5>
+                      {editData.jobExperience.length > 1 && (
+                        <button type="button" className="btn-remove" onClick={() => removeJobExperience(index)}>
+                          <i className="fas fa-trash"></i>
+                        </button>
+                      )}
+                    </div>
+                    <div className="form-grid">
+                      <div className="form-group">
+                        <label>Job Title</label>
+                        <input
+                          type="text"
+                          value={exp.jobTitle}
+                          onChange={(e) => handleJobExperienceChange(index, 'jobTitle', e.target.value)}
+                          placeholder="e.g., Senior Teacher"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Company Name</label>
+                        <input
+                          type="text"
+                          value={exp.companyName}
+                          onChange={(e) => handleJobExperienceChange(index, 'companyName', e.target.value)}
+                          placeholder="e.g., ABC School"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Employment Type</label>
+                        <select
+                          value={exp.employmentType}
+                          onChange={(e) => handleJobExperienceChange(index, 'employmentType', e.target.value)}
+                        >
+                          <option value="Full Time">Full Time</option>
+                          <option value="Part Time">Part Time</option>
+                          <option value="Internship">Internship</option>
+                          <option value="Freelance">Freelance</option>
+                          <option value="Contractual">Contractual</option>
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label>Start Date</label>
+                        <input
+                          type="date"
+                          value={exp.startDate}
+                          onChange={(e) => handleJobExperienceChange(index, 'startDate', e.target.value)}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>End Date</label>
+                        <input
+                          type="date"
+                          value={exp.endDate}
+                          onChange={(e) => handleJobExperienceChange(index, 'endDate', e.target.value)}
+                          placeholder="Leave empty if current"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Job Location</label>
+                        <input
+                          type="text"
+                          value={exp.jobLocation}
+                          onChange={(e) => handleJobExperienceChange(index, 'jobLocation', e.target.value)}
+                          placeholder="e.g., Manila, Philippines"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
               <div className="modal-actions">
                 <button type="button" className="btn-secondary" onClick={() => setShowEditForm(false)}>
                   Cancel
@@ -469,6 +589,47 @@ const TeacherProfile = () => {
               </div>
             </div>
           </div>
+
+          {/* Job Experience Section */}
+          {teacherData.jobExperience && teacherData.jobExperience.length > 0 && (
+            <div className="detail-section">
+              <h3 className="section-title">Job Experience</h3>
+              <div className="experience-timeline">
+                {teacherData.jobExperience.map((exp, index) => (
+                  <div key={index} className="experience-item">
+                    <div className="experience-icon">
+                      <i className="fas fa-briefcase"></i>
+                    </div>
+                    <div className="experience-content">
+                      <h4 className="experience-title">{exp.jobTitle || 'Position Not Specified'}</h4>
+                      <p className="experience-company">
+                        {exp.companyName || 'Company Not Specified'}
+                        {exp.employmentType && (
+                          <span className="employment-type">{exp.employmentType}</span>
+                        )}
+                      </p>
+                      <div className="experience-details">
+                        {(exp.startDate || exp.endDate) && (
+                          <span className="experience-date">
+                            <i className="fas fa-calendar"></i>
+                            {exp.startDate ? new Date(exp.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Not specified'}
+                            {' - '}
+                            {exp.endDate ? new Date(exp.endDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Present'}
+                          </span>
+                        )}
+                        {exp.jobLocation && (
+                          <span className="experience-location">
+                            <i className="fas fa-map-marker-alt"></i>
+                            {exp.jobLocation}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
