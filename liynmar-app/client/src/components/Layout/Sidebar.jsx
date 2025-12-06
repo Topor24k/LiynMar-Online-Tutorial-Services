@@ -6,6 +6,7 @@ const Sidebar = ({ isOpen, onToggle }) => {
   const navItems = [
     { path: '/dashboard', icon: 'fa-home', label: 'Dashboard' },
     { path: '/teachers', icon: 'fa-chalkboard-teacher', label: 'Teachers' },
+    { path: '/students', icon: 'fa-user-graduate', label: 'Students' },
     { path: '/bookings', icon: 'fa-calendar-check', label: 'Bookings' },
   ];
 

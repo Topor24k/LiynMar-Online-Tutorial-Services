@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getLastBookingDate, calculateInactiveDuration } from '../utils/helpers';
+import { toast } from 'react-toastify';
+import teacherService from '../services/teacherService';
 import './Teachers.css';
 
 const Teachers = ({ searchQuery = '' }) => {
   const navigate = useNavigate();
   const [showAddForm, setShowAddForm] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all'); // 'all', 'active', 'inactive', 'least-booked', 'most-booked', 'deleted'
+  const [loading, setLoading] = useState(true);
+  const [teachersData, setTeachersData] = useState([]);
+  const [deletedTeachers, setDeletedTeachers] = useState([]);
   const [newTeacher, setNewTeacher] = useState({
     name: '',
     subject: '',
@@ -24,42 +28,30 @@ const Teachers = ({ searchQuery = '' }) => {
     }]
   });
 
-  // Load teachers from localStorage
-  const loadTeachers = () => {
-    const stored = localStorage.getItem('allTeachers');
-    return stored ? JSON.parse(stored) : [];
+  // Fetch teachers from API
+  useEffect(() => {
+    fetchTeachers();
+  }, []);
+
+  const fetchTeachers = async () => {
+    setLoading(true);
+    try {
+      const response = await teacherService.getAllTeachers();
+      const allTeachers = response.data || [];
+      
+      // Separate active and deleted teachers
+      const active = allTeachers.filter(t => !t.isDeleted);
+      const deleted = allTeachers.filter(t => t.isDeleted);
+      
+      setTeachersData(active);
+      setDeletedTeachers(deleted);
+    } catch (error) {
+      toast.error('Failed to load teachers');
+      console.error('Error fetching teachers:', error);
+    } finally {
+      setLoading(false);
+    }
   };
-
-  // Load deleted teachers from localStorage
-  const loadDeletedTeachers = () => {
-    const stored = localStorage.getItem('deletedTeachers');
-    return stored ? JSON.parse(stored) : [];
-  };
-
-  const [teachersData, setTeachersData] = useState(loadTeachers());
-  const [deletedTeachers, setDeletedTeachers] = useState(loadDeletedTeachers());
-
-  // Calculate booking count from localStorage
-  const getBookingCount = (teacherId) => {
-    const bookings = JSON.parse(localStorage.getItem('teacherBookings') || '{}');
-    return bookings[teacherId] ? bookings[teacherId].length : 0;
-  };
-
-  // Add booking counts to teachers
-  const teachersWithBookings = teachersData.map(teacher => {
-    const lastBookingDate = getLastBookingDate(teacher._id);
-    const inactiveInfo = calculateInactiveDuration(lastBookingDate);
-    
-    return {
-      ...teacher,
-      totalBookings: getBookingCount(teacher._id),
-      lastBookingDate,
-      inactiveDuration: inactiveInfo.duration,
-      autoInactive: inactiveInfo.isInactive,
-      // Update status if auto-inactive
-      status: inactiveInfo.isInactive ? 'inactive' : teacher.status
-    };
-  });
 
   // Filter and sort teachers
   const getFilteredAndSortedTeachers = () => {
@@ -68,33 +60,23 @@ const Teachers = ({ searchQuery = '' }) => {
     // Choose dataset and apply initial filter based on activeFilter
     switch (activeFilter) {
       case 'deleted':
-        // Show deleted teachers
-        filtered = deletedTeachers.map(teacher => ({
-          ...teacher,
-          totalBookings: getBookingCount(teacher._id),
-          deletedAt: teacher.deletedAt
-        }));
+        filtered = deletedTeachers;
         break;
       case 'active':
-        // Show only active status teachers
-        filtered = teachersWithBookings.filter(t => !t.isDeleted && t.status === 'active');
+        filtered = teachersData.filter(t => t.status === 'active');
         break;
       case 'inactive':
-        // Show only inactive teachers (including auto-inactive)
-        filtered = teachersWithBookings.filter(t => !t.isDeleted && (t.status === 'inactive' || t.autoInactive));
+        filtered = teachersData.filter(t => t.status === 'inactive');
         break;
       case 'least-booked':
-        // Show all active teachers sorted by least bookings
-        filtered = [...teachersWithBookings.filter(t => !t.isDeleted)].sort((a, b) => a.totalBookings - b.totalBookings);
+        filtered = [...teachersData].sort((a, b) => (a.bookingsCount || 0) - (b.bookingsCount || 0));
         break;
       case 'most-booked':
-        // Show all active teachers sorted by most bookings
-        filtered = [...teachersWithBookings.filter(t => !t.isDeleted)].sort((a, b) => b.totalBookings - a.totalBookings);
+        filtered = [...teachersData].sort((a, b) => (b.bookingsCount || 0) - (a.bookingsCount || 0));
         break;
       case 'all':
       default:
-        // Show all active (non-deleted) teachers
-        filtered = teachersWithBookings.filter(t => !t.isDeleted);
+        filtered = teachersData;
         break;
     }
 
@@ -115,39 +97,39 @@ const Teachers = ({ searchQuery = '' }) => {
 
   const filteredTeachers = getFilteredAndSortedTeachers();
 
-  const handleAddTeacher = (e) => {
+  const handleAddTeacher = async (e) => {
     e.preventDefault();
     
-    const teacher = {
-      _id: Date.now().toString(),
-      ...newTeacher,
-      daysAvailable: [],
-      usualTime: '',
-      totalBookings: 0
-    };
-
-    const updatedTeachers = [...teachersData, teacher];
-    setTeachersData(updatedTeachers);
-    localStorage.setItem('allTeachers', JSON.stringify(updatedTeachers));
-
-    setNewTeacher({
-      name: '',
-      subject: '',
-      phone: '',
-      email: '',
-      facebook: '',
-      status: 'active',
-      jobExperience: [{
-        jobTitle: '',
-        companyName: '',
-        employmentType: 'Full Time',
-        startDate: '',
-        endDate: '',
-        jobLocation: ''
-      }]
-    });
-    setShowAddForm(false);
-    alert('Teacher added successfully!');
+    setLoading(true);
+    try {
+      await teacherService.createTeacher(newTeacher);
+      
+      toast.success('Teacher added successfully!');
+      setShowAddForm(false);
+      setNewTeacher({
+        name: '',
+        subject: '',
+        phone: '',
+        email: '',
+        facebook: '',
+        status: 'active',
+        jobExperience: [{
+          jobTitle: '',
+          companyName: '',
+          employmentType: 'Full Time',
+          startDate: '',
+          endDate: '',
+          jobLocation: ''
+        }]
+      });
+      
+      // Refresh teachers list
+      await fetchTeachers();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to add teacher');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleInputChange = (e) => {
@@ -189,76 +171,55 @@ const Teachers = ({ searchQuery = '' }) => {
     });
   };
 
-  const handleSoftDelete = (teacherId) => {
+  const handleSoftDelete = async (teacherId) => {
     if (!window.confirm('Are you sure you want to delete this teacher?')) {
       return;
     }
 
-    // Find the teacher to delete
-    const teacherToDelete = teachersData.find(t => t._id === teacherId);
-    if (!teacherToDelete) return;
-
-    // Add deletion timestamp
-    const deletedTeacher = {
-      ...teacherToDelete,
-      deletedAt: new Date().toISOString(),
-      isDeleted: true
-    };
-
-    // Remove from active teachers
-    const updatedTeachers = teachersData.filter(t => t._id !== teacherId);
-    setTeachersData(updatedTeachers);
-    localStorage.setItem('allTeachers', JSON.stringify(updatedTeachers));
-
-    // Add to deleted teachers
-    const updatedDeleted = [...deletedTeachers, deletedTeacher];
-    setDeletedTeachers(updatedDeleted);
-    localStorage.setItem('deletedTeachers', JSON.stringify(updatedDeleted));
-
-    alert('Teacher moved to deleted items');
+    setLoading(true);
+    try {
+      await teacherService.deleteTeacher(teacherId);
+      toast.success('Teacher moved to deleted items');
+      await fetchTeachers();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to delete teacher');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleRestore = (teacherId) => {
+  const handleRestore = async (teacherId) => {
     if (!window.confirm('Are you sure you want to restore this teacher?')) {
       return;
     }
 
-    // Find the teacher to restore
-    const teacherToRestore = deletedTeachers.find(t => t._id === teacherId);
-    if (!teacherToRestore) return;
-
-    // Remove deletion fields
-    const { deletedAt, isDeleted, ...restoredTeacher } = teacherToRestore;
-
-    // Add back to active teachers
-    const updatedTeachers = [...teachersData, restoredTeacher];
-    setTeachersData(updatedTeachers);
-    localStorage.setItem('allTeachers', JSON.stringify(updatedTeachers));
-
-    // Remove from deleted teachers
-    const updatedDeleted = deletedTeachers.filter(t => t._id !== teacherId);
-    setDeletedTeachers(updatedDeleted);
-    localStorage.setItem('deletedTeachers', JSON.stringify(updatedDeleted));
-
-    alert('Teacher restored successfully');
+    setLoading(true);
+    try {
+      await teacherService.restoreTeacher(teacherId);
+      toast.success('Teacher restored successfully');
+      await fetchTeachers();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to restore teacher');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handlePermanentDelete = (teacherId) => {
+  const handlePermanentDelete = async (teacherId) => {
     if (!window.confirm('Are you sure you want to permanently delete this teacher? This action cannot be undone!')) {
       return;
     }
 
-    // Remove from deleted teachers permanently
-    const updatedDeleted = deletedTeachers.filter(t => t._id !== teacherId);
-    setDeletedTeachers(updatedDeleted);
-    localStorage.setItem('deletedTeachers', JSON.stringify(updatedDeleted));
-
-    // Also remove their bookings
-    const bookings = JSON.parse(localStorage.getItem('teacherBookings') || '{}');
-    delete bookings[teacherId];
-    localStorage.setItem('teacherBookings', JSON.stringify(bookings));
-
-    alert('Teacher permanently deleted');
+    setLoading(true);
+    try {
+      await teacherService.permanentDeleteTeacher(teacherId);
+      toast.success('Teacher permanently deleted');
+      await fetchTeachers();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to permanently delete teacher');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -295,7 +256,7 @@ const Teachers = ({ searchQuery = '' }) => {
           onClick={() => setActiveFilter('inactive')}
         >
           <i className="fas fa-user-slash"></i> Inactive Teachers
-          <span className="tab-count">{teachersWithBookings.filter(t => t.status === 'inactive' || t.autoInactive).length}</span>
+          <span className="tab-count">{teachersData.filter(t => t.status === 'inactive').length}</span>
         </button>
         <button 
           className={`tab-button ${activeFilter === 'least-booked' ? 'active' : ''}`}
@@ -506,7 +467,13 @@ const Teachers = ({ searchQuery = '' }) => {
               </tr>
             </thead>
             <tbody>
-              {filteredTeachers.length > 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>
+                    <i className="fas fa-spinner fa-spin"></i> Loading teachers...
+                  </td>
+                </tr>
+              ) : filteredTeachers.length > 0 ? (
                 filteredTeachers.map((teacher) => (
                   <tr key={teacher._id} className="teacher-row">
                     <td>
@@ -522,7 +489,7 @@ const Teachers = ({ searchQuery = '' }) => {
                     <td>{teacher.phone}</td>
                     <td>{teacher.email}</td>
                     <td>
-                      <span className="booking-count">{teacher.totalBookings}</span>
+                      <span className="booking-count">{teacher.bookingsCount || 0}</span>
                     </td>
                     <td>
                       {activeFilter === 'deleted' ? (
@@ -534,17 +501,9 @@ const Teachers = ({ searchQuery = '' }) => {
                           })}
                         </span>
                       ) : (
-                        <>
-                          <span className={`status-badge ${teacher.status}`}>
-                            {teacher.status === 'active' ? 'Active' : 'Inactive'}
-                          </span>
-                          {teacher.autoInactive && teacher.inactiveDuration && (
-                            <div className="inactive-info">
-                              <i className="fas fa-clock"></i>
-                              <span>Inactive for {teacher.inactiveDuration}</span>
-                            </div>
-                          )}
-                        </>
+                        <span className={`status-badge ${teacher.status}`}>
+                          {teacher.status === 'active' ? 'Active' : 'Inactive'}
+                        </span>
                       )}
                     </td>
                     <td>

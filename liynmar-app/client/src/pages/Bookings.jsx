@@ -1,10 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { toast } from 'react-toastify';
+import teacherService from '../services/teacherService';
+import bookingService from '../services/bookingService';
 import './Bookings.css';
 
 const Bookings = ({ searchQuery = '' }) => {
   const [selectedTeacher, setSelectedTeacher] = useState(null);
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [autoEncodeText, setAutoEncodeText] = useState('');
+  const [allTeachers, setAllTeachers] = useState([]);
+  const [loading, setLoading] = useState(true);
   
   const [bookingData, setBookingData] = useState({
     studentName: '',
@@ -25,18 +30,24 @@ const Bookings = ({ searchQuery = '' }) => {
     }
   });
 
-  // Load teachers from localStorage - only active teachers
-  const loadActiveTeachers = () => {
-    const allTeachers = JSON.parse(localStorage.getItem('allTeachers') || '[]');
-    return allTeachers.filter(teacher => teacher.status === 'active');
-  };
-
-  const [allTeachers, setAllTeachers] = useState(loadActiveTeachers());
-
-  // Reload teachers when component mounts
-  React.useEffect(() => {
-    setAllTeachers(loadActiveTeachers());
+  // Fetch active teachers from API
+  useEffect(() => {
+    fetchTeachers();
   }, []);
+
+  const fetchTeachers = async () => {
+    setLoading(true);
+    try {
+      const response = await teacherService.getAllTeachers();
+      const activeTeachers = (response.data || []).filter(t => t.status === 'active' && !t.isDeleted);
+      setAllTeachers(activeTeachers);
+    } catch (error) {
+      toast.error('Failed to load teachers');
+      console.error('Error fetching teachers:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Filter teachers based on header search query
   const filteredTeachers = allTeachers.filter((teacher) => {

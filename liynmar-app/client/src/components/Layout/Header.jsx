@@ -11,9 +11,14 @@ const Header = ({ onMenuClick, onSearch, sidebarOpen = true }) => {
   const dropdownRef = useRef(null);
 
   // Get current user
-  const currentUser = getLocalStorage('currentUser', {});
-  const userName = currentUser.fullName || 'User';
-  const userRole = currentUser.role || 'Employee';
+  const getCurrentUser = () => {
+    const user = localStorage.getItem('currentUser');
+    return user ? JSON.parse(user) : {};
+  };
+
+  const currentUser = getCurrentUser();
+  const userName = currentUser.username || currentUser.fullName || currentUser.email?.split('@')[0] || 'User';
+  const userRole = currentUser.role === 'admin' ? 'Admin' : 'User';
 
   // Close dropdown when clicking outside
   useEffect(() => {

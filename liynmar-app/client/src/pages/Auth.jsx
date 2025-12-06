@@ -1,12 +1,17 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getLocalStorage, setLocalStorage } from '../utils/helpers';
+import { toast } from 'react-toastify';
+import authService from '../services/authService';
 import './Auth.css';
 
-const Auth = () => {
+const Auth = ({ onLoginSuccess }) => {
   const [isSignUp, setIsSignUp] = useState(false);
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  
+  // Debug: Verify component is rendering
+  console.log('Auth component rendering...');
   
   const [signUpData, setSignUpData] = useState({
     fullName: '',
@@ -36,75 +41,96 @@ const Auth = () => {
     });
   };
 
-  const handleSignUpSubmit = (e) => {
+  const handleSignUpSubmit = async (e) => {
     e.preventDefault();
     
     // Validation
     if (!signUpData.fullName || !signUpData.role || !signUpData.email || !signUpData.password) {
-      alert('Please fill in all fields');
+      toast.error('Please fill in all fields');
       return;
     }
 
-    // Get existing users
-    const users = getLocalStorage('users', []);
-    
-    // Check if email already exists
-    if (users.some(user => user.email === signUpData.email)) {
-      alert('Email already registered. Please sign in.');
+    if (signUpData.password.length < 6) {
+      toast.error('Password must be at least 6 characters');
       return;
     }
 
-    // Add new user
-    const newUser = {
-      id: Date.now(),
-      fullName: signUpData.fullName,
-      role: signUpData.role,
-      email: signUpData.email,
-      password: signUpData.password, // In production, this should be hashed
-      createdAt: new Date().toISOString()
-    };
+    setLoading(true);
+    try {
+      // Map role to backend format
+      const roleMap = {
+        'Admin (Owner)': 'admin',
+        'Teacher Profile Manager': 'user',
+        'Booking Manager': 'user'
+      };
 
-    users.push(newUser);
-    setLocalStorage('users', users);
-    
-    // Auto login after signup
-    setLocalStorage('currentUser', newUser);
-    
-    alert('Account created successfully!');
-    window.location.href = '/dashboard';
+      const response = await authService.register({
+        username: signUpData.fullName,
+        email: signUpData.email,
+        password: signUpData.password,
+        role: roleMap[signUpData.role] || 'user'
+      });
+
+      toast.success('Account created successfully!');
+      
+      // Auto login after signup
+      const loginResponse = await authService.login({
+        email: signUpData.email,
+        password: signUpData.password
+      });
+      if (onLoginSuccess) onLoginSuccess();
+      navigate('/dashboard');
+    } catch (error) {
+      console.error('Registration error:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Registration failed';
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSignInSubmit = (e) => {
+  const handleSignInSubmit = async (e) => {
     e.preventDefault();
     
     // Validation
     if (!signInData.email || !signInData.password) {
-      alert('Please fill in all fields');
+      toast.error('Please fill in all fields');
       return;
     }
 
-    // Get existing users
-    const users = getLocalStorage('users', []);
-    
-    // Find user
-    const user = users.find(u => u.email === signInData.email && u.password === signInData.password);
-    
-    if (!user) {
-      alert('Invalid email or password');
-      return;
+    setLoading(true);
+    try {
+      // TEMPORARY: Skip API call if backend is down
+      try {
+        await authService.login({
+          email: signInData.email,
+          password: signInData.password
+        });
+        toast.success('Logged in successfully!');
+      } catch (error) {
+        // If API fails, use temporary bypass
+        if (error.code === 'ERR_NETWORK' || error.message.includes('Network Error')) {
+          toast.warning('Backend offline - using demo mode');
+          localStorage.setItem('token', 'demo-token');
+          localStorage.setItem('currentUser', JSON.stringify({ email: signInData.email }));
+        } else {
+          throw error;
+        }
+      }
+      
+      if (onLoginSuccess) onLoginSuccess();
+      navigate('/dashboard');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Invalid email or password');
+    } finally {
+      setLoading(false);
     }
-
-    // Save current user
-    setLocalStorage('currentUser', user);
-    
-    alert('Logged in successfully!');
-    window.location.href = '/dashboard';
   };
 
   return (
-    <div className="auth-container">
+    <div className="auth-container" style={{ minHeight: '100vh', display: 'flex' }}>
       {/* Left Panel - Illustration */}
-      <div className="auth-left-panel">
+      <div className="auth-left-panel" style={{ flex: 1, background: 'linear-gradient(135deg, #8B7355 0%, #6d5a43 100%)' }}>
         <div className="auth-left-content">
           <div className="auth-brand">
             <div className="brand-icon">
@@ -215,8 +241,8 @@ const Auth = () => {
                 </button>
               </div>
 
-              <button type="submit" className="auth-submit-btn">
-                Create Account
+              <button type="submit" className="auth-submit-btn" disabled={loading}>
+                {loading ? 'Creating Account...' : 'Create Account'}
               </button>
             </form>
           ) : (
@@ -262,8 +288,8 @@ const Auth = () => {
                 <a href="#">Forgot password?</a>
               </div>
 
-              <button type="submit" className="auth-submit-btn">
-                Sign In
+              <button type="submit" className="auth-submit-btn" disabled={loading}>
+                {loading ? 'Signing In...' : 'Sign In'}
               </button>
             </form>
           )}

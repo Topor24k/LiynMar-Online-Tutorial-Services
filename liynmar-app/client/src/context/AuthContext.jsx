@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import axios from 'axios';
+import authService from '../services/authService';
 
 const AuthContext = createContext(null);
 
@@ -19,20 +19,18 @@ export const AuthProvider = ({ children }) => {
     // Check if user is logged in on mount
     const token = localStorage.getItem('token');
     if (token) {
-      // Verify token with backend
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      // You can add a verify token endpoint here
+      // Set token in axios headers
+      authService.setAuthToken(token);
+      // You can add a verify token endpoint to get user info
+      setUser({ token }); // Placeholder - should fetch user data
     }
     setLoading(false);
   }, []);
 
   const login = async (email, password) => {
     try {
-      const response = await axios.post('/api/auth/login', { email, password });
-      const { token, user } = response.data;
-      localStorage.setItem('token', token);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      setUser(user);
+      const response = await authService.login(email, password);
+      setUser(response.user);
       return { success: true };
     } catch (error) {
       return { success: false, error: error.response?.data?.message || 'Login failed' };
@@ -40,8 +38,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    delete axios.defaults.headers.common['Authorization'];
+    authService.logout();
     setUser(null);
   };
 

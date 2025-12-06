@@ -1,39 +1,51 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { toast } from 'react-toastify';
+import teacherService from '../services/teacherService';
+import studentService from '../services/studentService';
+import bookingService from '../services/bookingService';
 import './Dashboard.css';
 
 const Dashboard = () => {
   const [timePeriod, setTimePeriod] = useState('week'); // week, month, year
+  const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState({
     teachers: [],
-    bookings: {},
+    students: [],
+    bookings: [],
     sessions: []
   });
 
-  // Load data from localStorage
+  // Load data from API
   useEffect(() => {
-    const teachers = JSON.parse(localStorage.getItem('allTeachers') || '[]');
-    const bookings = JSON.parse(localStorage.getItem('teacherBookings') || '{}');
-    
-    // Flatten all sessions from all teachers
-    const allSessions = [];
-    Object.values(bookings).forEach(students => {
-      students.forEach(student => {
-        student.schedule.forEach(session => {
-          allSessions.push({
-            ...session,
-            studentName: student.name,
-            subject: student.subject
-          });
-        });
-      });
-    });
-
-    setDashboardData({
-      teachers,
-      bookings,
-      sessions: allSessions
-    });
+    fetchDashboardData();
   }, []);
+
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    try {
+      const [teachersResponse, studentsResponse, bookingsResponse] = await Promise.all([
+        teacherService.getAllTeachers(),
+        studentService.getAllStudents(),
+        bookingService.getAllBookings()
+      ]);
+
+      const teachers = teachersResponse.data || [];
+      const students = studentsResponse.data || [];
+      const bookings = bookingsResponse.data || [];
+
+      setDashboardData({
+        teachers: teachers.filter(t => !t.isDeleted),
+        students: students.filter(s => !s.isDeleted),
+        bookings,
+        sessions: bookings // Using bookings as sessions for now
+      });
+    } catch (error) {
+      toast.error('Failed to load dashboard data');
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Calculate shares based on duration
   const calculateShares = (duration, totalRate) => {
@@ -66,22 +78,16 @@ const Dashboard = () => {
     const totalTeachers = dashboardData.teachers.length;
     const activeTeachers = dashboardData.teachers.filter(t => t.status === 'active').length;
     
-    // Count unique students
-    const allStudents = new Set();
-    Object.values(dashboardData.bookings).forEach(students => {
-      students.forEach(student => {
-        allStudents.add(student.id);
-      });
-    });
-    const bookedStudents = allStudents.size;
+    // Count students
+    const bookedStudents = dashboardData.students.length;
 
     // Calculate sessions and revenue
-    const sessions = dashboardData.sessions.length;
+    const sessions = dashboardData.bookings.length;
     let revenue = 0;
     
-    dashboardData.sessions.forEach(session => {
-      if (session.status === 'C' || session.status === 'A') {
-        const shares = calculateShares(session.duration, session.rate);
+    dashboardData.bookings.forEach(booking => {
+      if (booking.status === 'completed' || booking.status === 'confirmed') {
+        const shares = calculateShares(booking.duration || '1 hour', booking.rate || 200);
         revenue += shares.companyShare;
       }
     });
