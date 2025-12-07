@@ -12,7 +12,7 @@ const Students = ({ searchQuery = '' }) => {
   const [deletedStudents, setDeletedStudents] = useState([]);
   const [teachersData, setTeachersData] = useState([]);
   const [newStudent, setNewStudent] = useState({
-    parentFacebookName: '',
+    parentFbName: '',
     studentName: '',
     gradeLevel: '',
     status: 'active'
@@ -109,7 +109,8 @@ const Students = ({ searchQuery = '' }) => {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter((student) =>
-        student.parentFacebookName.toLowerCase().includes(query) ||
+        (student.parentFbName && student.parentFbName.toLowerCase().includes(query)) ||
+        (student.parentFacebookName && student.parentFacebookName.toLowerCase().includes(query)) ||
         student.studentName.toLowerCase().includes(query) ||
         student.gradeLevel.toLowerCase().includes(query) ||
         (student.assignedTeacher && student.assignedTeacher.toLowerCase().includes(query)) ||
@@ -132,7 +133,7 @@ const Students = ({ searchQuery = '' }) => {
       toast.success('Student added successfully!');
       setShowAddForm(false);
       setNewStudent({
-        parentFacebookName: '',
+        parentFbName: '',
         studentName: '',
         gradeLevel: '',
         status: 'active'
@@ -322,8 +323,8 @@ const Students = ({ searchQuery = '' }) => {
                   <label>Parent Facebook Name *</label>
                   <input
                     type="text"
-                    name="parentFacebookName"
-                    value={newStudent.parentFacebookName}
+                    name="parentFbName"
+                    value={newStudent.parentFbName}
                     onChange={handleInputChange}
                     required
                   />
@@ -414,7 +415,7 @@ const Students = ({ searchQuery = '' }) => {
               ) : filteredStudents.length > 0 ? (
                 filteredStudents.map((student) => (
                   <tr key={student._id} className="student-row">
-                    <td>{student.parentFacebookName}</td>
+                    <td>{student.parentFbName || student.parentFacebookName}</td>
                     <td>
                       <div className="student-cell">
                         <img

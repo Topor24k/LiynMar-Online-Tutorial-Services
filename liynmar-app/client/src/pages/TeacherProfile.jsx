@@ -1,81 +1,343 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
+import teacherService from '../services/teacherService';
+import bookingService from '../services/bookingService';
 import './TeacherProfile.css';
 
+// Teacher Profile Component - Week/Month View
 const TeacherProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [weekOffset, setWeekOffset] = useState(0);
   const [showEditForm, setShowEditForm] = useState(false);
   const [editData, setEditData] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [teacherData, setTeacherData] = useState(null);
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [viewMode, setViewMode] = useState('week'); // 'week' or 'month'
+  const [allBookings, setAllBookings] = useState([]);
 
-  // Load teacher from localStorage
-  const loadTeacherData = () => {
-    const allTeachers = JSON.parse(localStorage.getItem('allTeachers') || '[]');
-    const foundTeacher = allTeachers.find(t => t._id === id);
+  const fetchTeacherData = async () => {
+    try {
+      const response = await teacherService.getTeacherById(id);
+      
+      // The API returns {teacher: {...}, bookings: [...], totalBookings: number}
+      const data = response.data || response;
+      const teacherInfo = data.teacher || data;
+      
+      setTeacherData(prev => ({
+        ...teacherInfo,
+        students: prev?.students || [] // Preserve existing students array if it exists
+      }));
+    } catch (error) {
+      console.error('Error fetching teacher:', error);
+      toast.error('Failed to load teacher profile');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAllBookings = async () => {
+    try {
+      const response = await bookingService.getBookingsByTeacher(id);
+      
+      // The API returns {status: 'success', results: n, data: [...]}
+      const bookings = response.data || response || [];
+      setAllBookings(bookings);
+      
+      // Initial filter for current week/month
+      filterBookingsByDate(bookings);
+    } catch (error) {
+      console.error('Error fetching bookings:', error);
+    }
+  };
+
+  const getWeekRange = (offset) => {
+    const today = new Date();
+    const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const diffToMonday = currentDay === 0 ? -6 : 1 - currentDay;
     
-    if (foundTeacher) {
-      return foundTeacher;
+    // Get Monday of current week
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + diffToMonday + (offset * 7));
+    monday.setHours(0, 0, 0, 0);
+    
+    // Get Sunday of current week
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+    
+    return { start: monday, end: sunday };
+  };
+
+  const getMonthRange = (offset) => {
+    const today = new Date();
+    const targetMonth = new Date(today.getFullYear(), today.getMonth() + offset, 1);
+    
+    const start = new Date(targetMonth.getFullYear(), targetMonth.getMonth(), 1);
+    start.setHours(0, 0, 0, 0);
+    
+    const end = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0);
+    end.setHours(23, 59, 59, 999);
+    
+    return { start, end };
+  };
+
+  const filterBookingsByDate = (bookingsData = allBookings) => {
+    const range = viewMode === 'week' ? getWeekRange(weekOffset) : getMonthRange(weekOffset);
+    
+    // Helper to get day name from date
+    const getDayNameFromDate = (date) => {
+      const dayMap = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      return dayMap[date.getDay()];
+    };
+    
+    // Helper to get all weeks in a month
+    const getWeeksInRange = (start, end) => {
+      const weeks = [];
+      let currentMonday = new Date(start);
+      const day = currentMonday.getDay();
+      const diffToMonday = day === 0 ? -6 : 1 - day;
+      currentMonday.setDate(currentMonday.getDate() + diffToMonday);
+      
+      while (currentMonday <= end) {
+        const weekStart = new Date(currentMonday);
+        const weekEnd = new Date(currentMonday);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+        weeks.push({ start: weekStart, end: weekEnd });
+        currentMonday.setDate(currentMonday.getDate() + 7);
+      }
+      return weeks;
+    };
+    
+    const students = [];
+    
+    if (viewMode === 'month') {
+      // In month view, create separate rows for each week
+      const weeks = getWeeksInRange(range.start, range.end);
+      
+      bookingsData.forEach(booking => {
+        weeks.forEach(week => {
+          const schedule = [];
+          const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+          let weekEarnings = 0;
+          let hasNonNStatus = false;
+          
+          // Iterate through all days in the booking's weeklySchedule
+          days.forEach(bookingDay => {
+            const daySchedule = booking.weeklySchedule && booking.weeklySchedule[bookingDay];
+            const isScheduled = daySchedule ? (typeof daySchedule === 'boolean' ? daySchedule : daySchedule.isScheduled) : false;
+            
+            if (isScheduled) {
+              // Get session status (handle both old string and new object format)
+              const sessionDay = booking.sessionStatus && booking.sessionStatus[bookingDay];
+              let statusCode = 'N';
+              let dayDate = null;
+              
+              if (sessionDay) {
+                statusCode = typeof sessionDay === 'string' ? sessionDay : (sessionDay.status || 'N');
+                // Use the actual date from sessionStatus if available
+                dayDate = (typeof sessionDay === 'object' && sessionDay.date) ? new Date(sessionDay.date) : null;
+              }
+              
+              // If no date in sessionStatus, skip this day (it's not scheduled for any specific date)
+              if (!dayDate) {
+                return;
+              }
+              
+              // Check if this day's date falls within the current week
+              const isDayInWeek = dayDate >= week.start && dayDate <= week.end;
+              
+              if (!isDayInWeek) {
+                return; // Skip days not in this week
+              }
+              
+              // Get the actual day name based on the date (e.g., Dec 7 is Sunday, Dec 8 is Monday)
+              const actualDayName = getDayNameFromDate(dayDate);
+              
+              // Track if this week has any non-'N' status
+              if (statusCode !== 'N') {
+                hasNonNStatus = true;
+              }
+              
+              // Get duration and calculate rate
+              const duration = (daySchedule && typeof daySchedule === 'object') ? daySchedule.duration : 1;
+              const rateMap = { 0.5: 63, 1: 125, 1.5: 188, 2: 250 };
+              const fullRate = rateMap[duration] || 125;
+              
+              // Calculate teacher share (80%) only for 'C' (Completed & Paid) and 'A' (Advance Paid)
+              if (statusCode === 'C' || statusCode === 'A') {
+                weekEarnings += fullRate * 0.8; // 80% goes to teacher, 20% to company
+              }
+              
+              schedule.push({
+                day: actualDayName, // Use the actual day name from the date
+                status: statusCode,
+                startDate: dayDate,
+                time: '14:00',
+                duration: duration,
+                rate: fullRate
+              });
+            }
+          });
+          
+          // Only add row if there are scheduled sessions AND at least one non-'N' status in this week
+          if (schedule.length > 0 && hasNonNStatus) {
+            students.push({
+              id: `${booking._id}_${week.start.getTime()}`,
+              bookingId: booking._id,
+              parent: booking.parentFbName,
+              name: booking.studentName,
+              gradeLevel: booking.gradeLevel,
+              subject: booking.subjectFocus,
+              subjectFocus: booking.subjectFocus,
+              contactNumber: booking.contactNumber,
+              facebookProfileLink: booking.facebookProfileLink,
+              additionalNote: booking.additionalNote,
+              weekStartDate: week.start,
+              weekEndDate: week.end,
+              schedule: schedule,
+              weekEarnings: weekEarnings
+            });
+          }
+        });
+      });
+    } else {
+      // Week view - use sessionStatus dates directly
+      bookingsData.forEach(booking => {
+        const schedule = [];
+        const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+        let weekEarnings = 0;
+        let hasSessionsInWeek = false;
+        
+        days.forEach(bookingDay => {
+          const daySchedule = booking.weeklySchedule && booking.weeklySchedule[bookingDay];
+          const isScheduled = daySchedule ? (typeof daySchedule === 'boolean' ? daySchedule : daySchedule.isScheduled) : false;
+          
+          if (isScheduled) {
+            // Get session status (handle both old string and new object format)
+            const sessionDay = booking.sessionStatus && booking.sessionStatus[bookingDay];
+            let statusCode = 'N';
+            let dayDate = null;
+            
+            if (sessionDay) {
+              statusCode = typeof sessionDay === 'string' ? sessionDay : (sessionDay.status || 'N');
+              // Use the actual date from sessionStatus if available
+              dayDate = (typeof sessionDay === 'object' && sessionDay.date) ? new Date(sessionDay.date) : null;
+            }
+            
+            // If no date in sessionStatus, skip this day
+            if (!dayDate) {
+              return;
+            }
+            
+            // Check if this day's date falls within the current week range
+            const isDayInRange = dayDate >= range.start && dayDate <= range.end;
+            
+            if (!isDayInRange) {
+              return; // Skip days not in this week
+            }
+            
+            hasSessionsInWeek = true;
+            
+            // Get the actual day name based on the date (e.g., Dec 7 is Sunday, Dec 8 is Monday)
+            const actualDayName = getDayNameFromDate(dayDate);
+            
+            const duration = (daySchedule && typeof daySchedule === 'object') ? daySchedule.duration : 1;
+            const rateMap = { 0.5: 63, 1: 125, 1.5: 188, 2: 250 };
+            const fullRate = rateMap[duration] || 125;
+            
+            // Calculate teacher share (80%) only for 'C' and 'A' statuses
+            if (statusCode === 'C' || statusCode === 'A') {
+              weekEarnings += fullRate * 0.8; // 80% goes to teacher, 20% to company
+            }
+            
+            schedule.push({
+              day: actualDayName, // Use the actual day name from the date
+              status: statusCode,
+              startDate: dayDate,
+              time: '14:00',
+              duration: duration,
+              rate: fullRate
+            });
+          }
+        });
+        
+        // Only add booking if it has sessions in the current week
+        if (hasSessionsInWeek) {
+          students.push({
+            id: booking._id,
+            bookingId: booking._id,
+            parent: booking.parentFbName,
+            name: booking.studentName,
+            gradeLevel: booking.gradeLevel,
+            subject: booking.subjectFocus,
+            subjectFocus: booking.subjectFocus,
+            contactNumber: booking.contactNumber,
+            facebookProfileLink: booking.facebookProfileLink,
+            additionalNote: booking.additionalNote,
+            weekStartDate: booking.weekStartDate,
+            weekEndDate: booking.weekEndDate,
+            schedule: schedule,
+            weekEarnings: weekEarnings
+          });
+        }
+      });
     }
     
-    // Return default teacher if not found in localStorage
+    setTeacherData(prev => ({
+      ...prev,
+      students: students
+    }));
+  };
+
+  const formatDateRange = () => {
+    const range = viewMode === 'week' ? getWeekRange(weekOffset) : getMonthRange(weekOffset);
+    
+    if (viewMode === 'week') {
+      const options = { month: 'short', day: 'numeric', year: 'numeric' };
+      return `${range.start.toLocaleDateString('en-US', options)} - ${range.end.toLocaleDateString('en-US', options)}`;
+    } else {
+      const options = { month: 'long', year: 'numeric' };
+      return range.start.toLocaleDateString('en-US', options);
+    }
+  };
+
+  // Get the dates for each day of the week
+  const getWeekDayDates = () => {
+    const range = getWeekRange(weekOffset);
+    const monday = new Date(range.start);
+    
     return {
-      _id: id,
-      name: 'Sarah Johnson',
-      subject: 'Mathematics',
-      email: 'sarah.johnson@liynmar.com',
-      phone: '+63 912 345 6789',
-      facebook: 'facebook.com/sarahjohnson',
-      major: 'Mathematics Education',
-      experience: '3 years in online tutoring, specialized in Algebra and Calculus',
-      daysAvailable: ['Monday', 'Tuesday', 'Wednesday', 'Friday'],
-      usualTime: '2:00 PM - 8:00 PM',
-      status: 'active',
+      monday: monday.getDate(),
+      tuesday: new Date(monday.getTime() + 1 * 24 * 60 * 60 * 1000).getDate(),
+      wednesday: new Date(monday.getTime() + 2 * 24 * 60 * 60 * 1000).getDate(),
+      thursday: new Date(monday.getTime() + 3 * 24 * 60 * 60 * 1000).getDate(),
+      friday: new Date(monday.getTime() + 4 * 24 * 60 * 60 * 1000).getDate(),
+      saturday: new Date(monday.getTime() + 5 * 24 * 60 * 60 * 1000).getDate(),
+      sunday: new Date(monday.getTime() + 6 * 24 * 60 * 60 * 1000).getDate()
     };
   };
 
-  // Load bookings from localStorage
-  const loadBookings = () => {
-    const bookings = JSON.parse(localStorage.getItem('teacherBookings') || '{}');
-    return bookings[id] || [];
-  };
-
-  const [teacherData, setTeacherData] = useState(() => {
-    const teacher = loadTeacherData();
-    return { ...teacher, students: loadBookings() };
-  });
-
-  // Reload bookings when component mounts or id changes
-  React.useEffect(() => {
-    const teacher = loadTeacherData();
-    const updatedTeacher = { ...teacher, students: loadBookings() };
-    setTeacherData(updatedTeacher);
+  // Fetch teacher data and bookings from API
+  useEffect(() => {
+    fetchTeacherData();
+    fetchAllBookings();
   }, [id]);
 
-  const handleStatusChange = (studentId, dayIndex, newStatus) => {
-    // Update the status
-    setTeacherData(prev => {
-      const updated = { ...prev };
-      const student = updated.students[studentId];
-      if (student.schedule[dayIndex]) {
-        student.schedule[dayIndex].status = newStatus;
-      }
-      
-      // Save to localStorage
-      const bookings = JSON.parse(localStorage.getItem('teacherBookings') || '{}');
-      bookings[id] = updated.students;
-      localStorage.setItem('teacherBookings', JSON.stringify(bookings));
-      
-      return updated;
-    });
-  };
+  // Filter bookings when week offset or view mode changes
+  useEffect(() => {
+    if (allBookings.length > 0) {
+      filterBookingsByDate();
+    }
+  }, [weekOffset, viewMode, allBookings]);
 
   const handleEditClick = () => {
     setEditData({
-      subject: teacherData.subject,
-      phone: teacherData.phone,
+      majorSubject: teacherData.majorSubject || teacherData.subject,
+      contactNumber: teacherData.contactNumber || teacherData.phone,
       email: teacherData.email,
-      facebook: teacherData.facebook,
+      facebookAccount: teacherData.facebookAccount || teacherData.facebook,
       status: teacherData.status,
       jobExperience: teacherData.jobExperience || [{
         jobTitle: '',
@@ -128,43 +390,23 @@ const TeacherProfile = () => {
     });
   };
 
-  const handleSaveEdit = (e) => {
+  const handleSaveEdit = async (e) => {
     e.preventDefault();
     
-    // Update teacher data
-    const updatedTeacher = {
-      ...teacherData,
-      subject: editData.subject,
-      major: editData.subject, // Keep major in sync with subject
-      phone: editData.phone,
-      email: editData.email,
-      facebook: editData.facebook,
-      status: editData.status,
-      jobExperience: editData.jobExperience
-    };
-    
-    setTeacherData(updatedTeacher);
-    
-    // Save to localStorage
-    const allTeachers = JSON.parse(localStorage.getItem('allTeachers') || '[]');
-    const teacherIndex = allTeachers.findIndex(t => t._id === id);
-    
-    if (teacherIndex !== -1) {
-      allTeachers[teacherIndex] = {
-        ...allTeachers[teacherIndex],
-        subject: editData.subject,
-        major: editData.subject,
-        phone: editData.phone,
-        email: editData.email,
-        facebook: editData.facebook,
-        status: editData.status,
-        jobExperience: editData.jobExperience
-      };
-      localStorage.setItem('allTeachers', JSON.stringify(allTeachers));
+    setLoading(true);
+    try {
+      await teacherService.updateTeacher(id, editData);
+      
+      toast.success('Teacher profile updated successfully!');
+      setShowEditForm(false);
+      
+      // Refresh teacher data
+      await fetchTeacherData();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to update teacher');
+    } finally {
+      setLoading(false);
     }
-    
-    setShowEditForm(false);
-    alert('Profile updated successfully!');
   };
 
   const getSessionByDay = (student, dayName) => {
@@ -190,26 +432,76 @@ const TeacherProfile = () => {
       { code: 'P', label: 'Pending', className: 'pending-unpaid' },
       { code: 'T', label: 'Teacher Absent', className: 'teacher-absent' },
       { code: 'S', label: 'Student Absent', className: 'student-absent' },
+      { code: 'AT', label: 'Advance Paid - Teacher Absent', className: 'teacher-absent' },
+      { code: 'AS', label: 'Advance Paid - Student Absent', className: 'student-absent' },
       { code: 'N', label: 'No Schedule', className: 'not-scheduled' },
     ];
 
-    const handleChange = (newCode) => {
+    const handleChange = async (newCode) => {
       if (!session) {
-        // Confirm before adding a new schedule
-        const confirmed = window.confirm('Are you sure you want to add a schedule?');
-        if (!confirmed) {
-          setShowMenu(false);
-          return;
-        }
-        alert(`Add schedule functionality for ${dayName} - Status: ${newCode}`);
         setShowMenu(false);
         return;
       }
       
-      const sessionIndex = teacherData.students[studentIndex].schedule.findIndex(
-        s => s.day === dayName.toLowerCase()
-      );
-      handleStatusChange(studentIndex, sessionIndex, newCode);
+      const student = teacherData.students[studentIndex];
+      const bookingId = student.bookingId || student.id;
+      
+      try {
+        // Build the sessionStatus object with the updated day
+        // Handle both old (string) and new (object) format
+        const sessionStatus = {};
+        const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+        
+        days.forEach(day => {
+          const scheduleDay = student.schedule.find(s => s.day === day);
+          if (scheduleDay) {
+            // Only set dates if status is not 'N'
+            const hasSchedule = scheduleDay.status !== 'N';
+            sessionStatus[day] = {
+              status: scheduleDay.status,
+              date: hasSchedule ? scheduleDay.startDate : null,
+              weekStart: hasSchedule ? student.weekStartDate : null,
+              weekEnd: hasSchedule ? student.weekEndDate : null
+            };
+          } else {
+            sessionStatus[day] = {
+              status: 'N',
+              date: null,
+              weekStart: null,
+              weekEnd: null
+            };
+          }
+        });
+        
+        // Update the specific day with new status
+        const updatingToNoSchedule = newCode === 'N';
+        sessionStatus[dayName.toLowerCase()] = {
+          status: newCode,
+          date: updatingToNoSchedule ? null : sessionStatus[dayName.toLowerCase()].date,
+          weekStart: updatingToNoSchedule ? null : student.weekStartDate,
+          weekEnd: updatingToNoSchedule ? null : student.weekEndDate
+        };
+        
+        // Update the booking in the database
+        await bookingService.updateBooking(bookingId, { sessionStatus });
+        
+        // Update status in the students array locally
+        setTeacherData(prev => {
+          const updated = { ...prev };
+          const student = updated.students[studentIndex];
+          const sessionIndex = student.schedule.findIndex(s => s.day === dayName.toLowerCase());
+          if (sessionIndex !== -1) {
+            student.schedule[sessionIndex].status = newCode;
+          }
+          return updated;
+        });
+        
+        toast.success('Session status updated successfully!');
+      } catch (error) {
+        console.error('Error updating session status:', error);
+        toast.error('Failed to update session status');
+      }
+      
       setShowMenu(false);
     };
 
@@ -279,33 +571,12 @@ const TeacherProfile = () => {
 
   // Calculate teacher and company shares based on duration
   const calculateShares = (duration, totalRate) => {
-    // Parse duration to get hours
-    const durationStr = duration.toLowerCase();
-    let hours = 0;
+    // duration is now a number (0.5, 1, 1.5, 2)
+    const hours = typeof duration === 'number' ? duration : parseFloat(duration) || 1;
     
-    if (durationStr.includes('30 min')) {
-      hours = 0.5;
-    } else if (durationStr.includes('1.5 hour')) {
-      hours = 1.5;
-    } else if (durationStr.includes('2 hour')) {
-      hours = 2;
-    } else if (durationStr.includes('1 hour')) {
-      hours = 1;
-    } else {
-      // Try to parse as number
-      const match = durationStr.match(/([\d.]+)/);
-      hours = match ? parseFloat(match[1]) : 0;
-    }
-    
-    // Calculate based on rate structure:
-    // 30 mins (0.5h) = 63 total (50 teacher, 13 company)
-    // 1 hour = 125 total (100 teacher, 25 company)
-    const halfHours = Math.floor(hours / 0.5);
-    const fullHours = Math.floor(hours);
-    const remaining30mins = halfHours - (fullHours * 2);
-    
-    const teacherShare = (fullHours * 100) + (remaining30mins * 50);
-    const companyShare = totalRate - teacherShare;
+    // Calculate teacher share based on rate map (80% of total)
+    const teacherShare = totalRate * 0.8;
+    const companyShare = totalRate * 0.2;
     
     return { teacherShare, companyShare };
   };
@@ -318,21 +589,25 @@ const TeacherProfile = () => {
     let totalTeacherShare = 0;
     let totalCompanyShare = 0;
 
-    teacherData.students.forEach(student => {
-      student.schedule.forEach(session => {
-        totalSessions++;
-        if (session.status === 'C' || session.status === 'A') {
-          paidSessions++;
-          totalEarned += session.rate;
-          const shares = calculateShares(session.duration, session.rate);
-          totalTeacherShare += shares.teacherShare;
-          totalCompanyShare += shares.companyShare;
-        }
-        if (session.status === 'P') {
-          pendingSessions++;
+    if (teacherData && teacherData.students && Array.isArray(teacherData.students)) {
+      teacherData.students.forEach(student => {
+        if (student.schedule && Array.isArray(student.schedule)) {
+          student.schedule.forEach(session => {
+            totalSessions++;
+            if (session.status === 'C' || session.status === 'A') {
+              paidSessions++;
+              totalEarned += session.rate;
+              const shares = calculateShares(session.duration, session.rate);
+              totalTeacherShare += shares.teacherShare;
+              totalCompanyShare += shares.companyShare;
+            }
+            if (session.status === 'P') {
+              pendingSessions++;
+            }
+          });
         }
       });
-    });
+    }
 
     return { 
       totalSessions, 
@@ -345,12 +620,28 @@ const TeacherProfile = () => {
   };
 
   const calculateStudentTotal = (student) => {
+    if (!student.schedule || !Array.isArray(student.schedule)) {
+      return 0;
+    }
     return student.schedule
       .filter(s => s.status === 'C' || s.status === 'A')
       .reduce((sum, s) => sum + s.rate, 0);
   };
 
   const summary = calculateSummary();
+
+  // Calculate total earnings for a booking
+  const calculateTotalEarnings = (booking) => {
+    return booking.totalEarningsPerWeek || 0;
+  };
+
+  if (loading || !teacherData) {
+    return (
+      <div className="teacher-profile-page">
+        <div className="loading">Loading teacher profile...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="teacher-profile-page">
@@ -383,8 +674,8 @@ const TeacherProfile = () => {
                   <label>Major Subject *</label>
                   <input
                     type="text"
-                    name="subject"
-                    value={editData.subject}
+                    name="majorSubject"
+                    value={editData.majorSubject}
                     onChange={handleEditInputChange}
                     required
                   />
@@ -393,8 +684,8 @@ const TeacherProfile = () => {
                   <label>Contact Number *</label>
                   <input
                     type="text"
-                    name="phone"
-                    value={editData.phone}
+                    name="contactNumber"
+                    value={editData.contactNumber}
                     onChange={handleEditInputChange}
                     required
                   />
@@ -413,8 +704,8 @@ const TeacherProfile = () => {
                   <label>Facebook Account</label>
                   <input
                     type="text"
-                    name="facebook"
-                    value={editData.facebook}
+                    name="facebookAccount"
+                    value={editData.facebookAccount}
                     onChange={handleEditInputChange}
                   />
                 </div>
@@ -538,7 +829,7 @@ const TeacherProfile = () => {
           </div>
           <div className="profile-info-main">
             <h2>{teacherData.name}</h2>
-            <p className="profile-subject">{teacherData.subject} Teacher</p>
+            <p className="profile-subject">{teacherData.majorSubject || teacherData.subject} Teacher</p>
             <div className="profile-meta">
               <div className="profile-status-inline">
                 <span className={`status-badge ${teacherData.status}`}>
@@ -564,14 +855,14 @@ const TeacherProfile = () => {
                 <i className="fas fa-phone"></i>
                 <div>
                   <label>Contact Number</label>
-                  <span>{teacherData.phone}</span>
+                  <span>{teacherData.contactNumber || teacherData.phone}</span>
                 </div>
               </div>
               <div className="detail-item">
                 <i className="fab fa-facebook"></i>
                 <div>
                   <label>Facebook Account</label>
-                  <span>{teacherData.facebook}</span>
+                  <span>{teacherData.facebookAccount || teacherData.facebook}</span>
                 </div>
               </div>
             </div>
@@ -584,7 +875,7 @@ const TeacherProfile = () => {
                 <i className="fas fa-graduation-cap"></i>
                 <div>
                   <label>Subject Major</label>
-                  <span>{teacherData.major}</span>
+                  <span>{teacherData.majorSubject || teacherData.subject || teacherData.major}</span>
                 </div>
               </div>
             </div>
@@ -636,14 +927,41 @@ const TeacherProfile = () => {
       {/* Weekly Students Schedule */}
       <div className="card">
         <div className="card-header">
-          <h3 className="card-title">Students This Week (Dec 1-7, 2025)</h3>
+          <h3 className="card-title">
+            {viewMode === 'week' ? 'Weekly' : 'Monthly'} Students Schedule 
+            ({teacherData.students ? teacherData.students.length : 0} Bookings)
+          </h3>
           <div className="week-controls">
+            <div className="view-mode-toggle" style={{ marginRight: '1rem' }}>
+              <button 
+                className={`view-mode-btn ${viewMode === 'week' ? 'active' : ''}`}
+                onClick={() => { setViewMode('week'); setWeekOffset(0); }}
+              >
+                <i className="fas fa-calendar-week"></i>
+                Week
+              </button>
+              <button 
+                className={`view-mode-btn ${viewMode === 'month' ? 'active' : ''}`}
+                onClick={() => { setViewMode('month'); setWeekOffset(0); }}
+              >
+                <i className="fas fa-calendar-alt"></i>
+                Month
+              </button>
+            </div>
             <button className="btn-icon" onClick={() => setWeekOffset(weekOffset - 1)}>
               <i className="fas fa-chevron-left"></i>
             </button>
-            <span className="current-week">Week 1, December 2025</span>
+            <span className="current-week">{formatDateRange()}</span>
             <button className="btn-icon" onClick={() => setWeekOffset(weekOffset + 1)}>
               <i className="fas fa-chevron-right"></i>
+            </button>
+            <button 
+              className="btn-icon" 
+              onClick={() => setWeekOffset(0)}
+              title="Go to current week/month"
+              style={{ marginLeft: '0.5rem' }}
+            >
+              <i className="fas fa-calendar-day"></i>
             </button>
           </div>
         </div>
@@ -656,47 +974,75 @@ const TeacherProfile = () => {
                 <th>STUDENT NAME</th>
                 <th>GRADE LEVEL</th>
                 <th>SUBJECT FOCUS</th>
-                <th className="day-col">M</th>
-                <th className="day-col">T</th>
-                <th className="day-col">W</th>
-                <th className="day-col">Th</th>
-                <th className="day-col">F</th>
-                <th className="day-col">Sa</th>
-                <th className="day-col">Su</th>
+                {viewMode === 'month' && <th>WEEK</th>}
+                {viewMode === 'week' ? (
+                  <>
+                    <th className="day-col">M<br/><span style={{ fontSize: '10px', fontWeight: 'normal' }}>{getWeekDayDates().monday}</span></th>
+                    <th className="day-col">T<br/><span style={{ fontSize: '10px', fontWeight: 'normal' }}>{getWeekDayDates().tuesday}</span></th>
+                    <th className="day-col">W<br/><span style={{ fontSize: '10px', fontWeight: 'normal' }}>{getWeekDayDates().wednesday}</span></th>
+                    <th className="day-col">Th<br/><span style={{ fontSize: '10px', fontWeight: 'normal' }}>{getWeekDayDates().thursday}</span></th>
+                    <th className="day-col">F<br/><span style={{ fontSize: '10px', fontWeight: 'normal' }}>{getWeekDayDates().friday}</span></th>
+                    <th className="day-col">Sa<br/><span style={{ fontSize: '10px', fontWeight: 'normal' }}>{getWeekDayDates().saturday}</span></th>
+                    <th className="day-col">Su<br/><span style={{ fontSize: '10px', fontWeight: 'normal' }}>{getWeekDayDates().sunday}</span></th>
+                  </>
+                ) : (
+                  <>
+                    <th className="day-col">M</th>
+                    <th className="day-col">T</th>
+                    <th className="day-col">W</th>
+                    <th className="day-col">Th</th>
+                    <th className="day-col">F</th>
+                    <th className="day-col">Sa</th>
+                    <th className="day-col">Su</th>
+                  </>
+                )}
                 <th>TOTAL EARNINGS</th>
               </tr>
             </thead>
             <tbody>
-              {teacherData.students.map((student, idx) => (
-                <tr key={student.id}>
-                  <td>{student.parent}</td>
-                  <td className="student-name">{student.name}</td>
-                  <td>{student.gradeLevel}</td>
-                  <td>{student.subjectFocus || student.subject}</td>
-                  <td className="day-status">
-                    <StatusCell studentIndex={idx} session={getSessionByDay(student, 'monday')} dayName="monday" />
+              {teacherData.students && teacherData.students.length > 0 ? (
+                teacherData.students.map((student, idx) => (
+                  <tr key={student.id}>
+                    <td>{student.parent}</td>
+                    <td className="student-name">{student.name}</td>
+                    <td>{student.gradeLevel}</td>
+                    <td>{student.subjectFocus || student.subject}</td>
+                    {viewMode === 'month' && (
+                      <td style={{ fontSize: '11px', whiteSpace: 'nowrap' }}>
+                        {new Date(student.weekStartDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - {new Date(student.weekEndDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </td>
+                    )}
+                    <td className="day-status">
+                      <StatusCell studentIndex={idx} session={getSessionByDay(student, 'monday')} dayName="monday" />
+                    </td>
+                    <td className="day-status">
+                      <StatusCell studentIndex={idx} session={getSessionByDay(student, 'tuesday')} dayName="tuesday" />
+                    </td>
+                    <td className="day-status">
+                      <StatusCell studentIndex={idx} session={getSessionByDay(student, 'wednesday')} dayName="wednesday" />
+                    </td>
+                    <td className="day-status">
+                      <StatusCell studentIndex={idx} session={getSessionByDay(student, 'thursday')} dayName="thursday" />
+                    </td>
+                    <td className="day-status">
+                      <StatusCell studentIndex={idx} session={getSessionByDay(student, 'friday')} dayName="friday" />
+                    </td>
+                    <td className="day-status">
+                      <StatusCell studentIndex={idx} session={getSessionByDay(student, 'saturday')} dayName="saturday" />
+                    </td>
+                    <td className="day-status">
+                      <StatusCell studentIndex={idx} session={getSessionByDay(student, 'sunday')} dayName="sunday" />
+                    </td>
+                    <td className="total-earned">₱{(student.weekEarnings || calculateStudentTotal(student)).toFixed(2)}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={viewMode === 'month' ? "13" : "12"} style={{ textAlign: 'center', padding: '2rem' }}>
+                    No students booked for this {viewMode === 'week' ? 'week' : 'month'}
                   </td>
-                  <td className="day-status">
-                    <StatusCell studentIndex={idx} session={getSessionByDay(student, 'tuesday')} dayName="tuesday" />
-                  </td>
-                  <td className="day-status">
-                    <StatusCell studentIndex={idx} session={getSessionByDay(student, 'wednesday')} dayName="wednesday" />
-                  </td>
-                  <td className="day-status">
-                    <StatusCell studentIndex={idx} session={getSessionByDay(student, 'thursday')} dayName="thursday" />
-                  </td>
-                  <td className="day-status">
-                    <StatusCell studentIndex={idx} session={getSessionByDay(student, 'friday')} dayName="friday" />
-                  </td>
-                  <td className="day-status">
-                    <StatusCell studentIndex={idx} session={getSessionByDay(student, 'saturday')} dayName="saturday" />
-                  </td>
-                  <td className="day-status">
-                    <StatusCell studentIndex={idx} session={getSessionByDay(student, 'sunday')} dayName="sunday" />
-                  </td>
-                  <td className="total-earned">₱{calculateStudentTotal(student).toFixed(2)}</td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
@@ -750,6 +1096,14 @@ const TeacherProfile = () => {
           <div className="legend-item">
             <span className="status-icon student-absent">S</span>
             <span>Student Absent (No Payment)</span>
+          </div>
+          <div className="legend-item">
+            <span className="status-icon teacher-absent">AT</span>
+            <span>Advance Paid - Teacher Absent</span>
+          </div>
+          <div className="legend-item">
+            <span className="status-icon student-absent">AS</span>
+            <span>Advance Paid - Student Absent</span>
           </div>
           <div className="legend-item">
             <span className="status-icon not-scheduled">N</span>

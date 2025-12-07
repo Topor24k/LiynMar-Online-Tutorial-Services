@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 const studentSchema = new mongoose.Schema({
-  parentFacebookName: {
+  parentFbName: {
     type: String,
     required: [true, 'Parent Facebook name is required'],
     trim: true
@@ -19,10 +19,18 @@ const studentSchema = new mongoose.Schema({
       'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'
     ]
   },
-  assignedTeacherId: {
+  assignedTeacherForTheWeek: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Teacher',
     default: null
+  },
+  contactNumber: {
+    type: String,
+    trim: true
+  },
+  facebookProfileLink: {
+    type: String,
+    trim: true
   },
   status: {
     type: String,
@@ -44,12 +52,12 @@ const studentSchema = new mongoose.Schema({
 studentSchema.index({ studentName: 1 });
 studentSchema.index({ status: 1 });
 studentSchema.index({ isDeleted: 1 });
-studentSchema.index({ assignedTeacherId: 1 });
+studentSchema.index({ assignedTeacherForTheWeek: 1 });
 
 // Virtual for assigned teacher details
 studentSchema.virtual('assignedTeacher', {
   ref: 'Teacher',
-  localField: 'assignedTeacherId',
+  localField: 'assignedTeacherForTheWeek',
   foreignField: '_id',
   justOne: true
 });

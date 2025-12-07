@@ -1,5 +1,6 @@
 import Booking from '../models/Booking.js';
 import Teacher from '../models/Teacher.js';
+import Student from '../models/Student.js';
 
 // @desc    Get all bookings
 // @route   GET /api/bookings
@@ -19,8 +20,8 @@ export const getAllBookings = async (req, res) => {
     }
 
     const bookings = await Booking.find(query)
-      .populate('teacherId', 'name subject email')
-      .sort({ date: -1 });
+      .populate('teacherId', 'name majorSubject email')
+      .sort({ weekStartDate: -1 });
 
     res.status(200).json({
       status: 'success',
@@ -41,16 +42,16 @@ export const getAllBookings = async (req, res) => {
 export const getBookingStats = async (req, res) => {
   try {
     const totalBookings = await Booking.countDocuments({ isDeleted: false });
+    const activeBookings = await Booking.countDocuments({ status: 'active', isDeleted: false });
     const completedBookings = await Booking.countDocuments({ status: 'completed', isDeleted: false });
-    const pendingBookings = await Booking.countDocuments({ status: 'pending', isDeleted: false });
     const cancelledBookings = await Booking.countDocuments({ status: 'cancelled', isDeleted: false });
 
     res.status(200).json({
       status: 'success',
       data: {
         totalBookings,
+        activeBookings,
         completedBookings,
-        pendingBookings,
         cancelledBookings
       }
     });
@@ -70,7 +71,7 @@ export const getBookingsByTeacher = async (req, res) => {
     const bookings = await Booking.find({ 
       teacherId: req.params.teacherId,
       isDeleted: false 
-    }).sort({ date: -1 });
+    }).sort({ weekStartDate: -1 });
 
     res.status(200).json({
       status: 'success',
@@ -91,7 +92,7 @@ export const getBookingsByTeacher = async (req, res) => {
 export const getBookingById = async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id)
-      .populate('teacherId', 'name subject email phone');
+      .populate('teacherId', 'name majorSubject email contactNumber facebookAccount');
     
     if (!booking) {
       return res.status(404).json({
@@ -117,13 +118,125 @@ export const getBookingById = async (req, res) => {
 // @access  Public
 export const createBooking = async (req, res) => {
   try {
-    const booking = await Booking.create(req.body);
-    
-    // Update teacher's last booking date
+    const { 
+      teacherId, 
+      parentFbName,
+      studentName, 
+      gradeLevel,
+      subjectFocus,
+      contactNumber,
+      facebookProfileLink,
+      additionalNote,
+      weeklySchedule,
+      totalEarningsPerWeek,
+      weekStartDate
+    } = req.body;
+
+    // Validate required fields
+    if (!teacherId || !parentFbName || !studentName || !gradeLevel || !subjectFocus || !weekStartDate) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Missing required fields'
+      });
+    }
+
+    // Calculate week end date (6 days after start)
+    const startDate = new Date(weekStartDate);
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + 6);
+
+    // Rate calculation based on duration
+    const getRateForDuration = (duration) => {
+      const rates = {
+        0.5: 63,   // 30 mins
+        1: 125,    // 1 hour
+        1.5: 188,  // 1.5 hours
+        2: 250     // 2 hours
+      };
+      return rates[duration] || 125;
+    };
+
+    // Initialize weeklySchedule and sessionStatus with dates and rates
+    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    const dayMap = { monday: 0, tuesday: 1, wednesday: 2, thursday: 3, friday: 4, saturday: 5, sunday: 6 };
+    const sessionStatus = {};
+    let totalWeekEarnings = 0;
+
+    days.forEach(day => {
+      const dayDate = new Date(startDate);
+      dayDate.setDate(startDate.getDate() + dayMap[day]);
+      
+      // Check if this day is scheduled (supports both boolean and object format)
+      const daySchedule = weeklySchedule && weeklySchedule[day];
+      const isScheduled = daySchedule ? (typeof daySchedule === 'boolean' ? daySchedule : daySchedule.isScheduled) : false;
+      const duration = daySchedule && typeof daySchedule === 'object' ? daySchedule.duration : 1;
+      const rate = getRateForDuration(duration);
+      
+      if (isScheduled) {
+        totalWeekEarnings += rate;
+      }
+      
+      sessionStatus[day] = {
+        status: isScheduled ? 'P' : 'N',
+        date: isScheduled ? dayDate : null,  // Only set date if scheduled
+        weekStart: isScheduled ? startDate : null,
+        weekEnd: isScheduled ? endDate : null
+      };
+    });
+
+    // Create the booking
+    const booking = await Booking.create({
+      teacherId,
+      parentFbName,
+      studentName,
+      gradeLevel,
+      subjectFocus,
+      contactNumber,
+      facebookProfileLink,
+      additionalNote,
+      weeklySchedule,
+      sessionStatus,
+      totalEarningsPerWeek: totalWeekEarnings,
+      weekStartDate: startDate,
+      weekEndDate: endDate,
+      status: 'active'
+    });
+
+    // Update or create student record
+    let student = await Student.findOne({ 
+      studentName: studentName,
+      parentFbName: parentFbName,
+      isDeleted: false 
+    });
+
+    if (!student) {
+      // Create new student
+      student = await Student.create({
+        parentFbName,
+        studentName,
+        gradeLevel,
+        assignedTeacherForTheWeek: teacherId,
+        contactNumber,
+        facebookProfileLink,
+        status: 'active'
+      });
+    } else {
+      // Update student with current week's teacher
+      student.assignedTeacherForTheWeek = teacherId;
+      student.gradeLevel = gradeLevel;
+      student.contactNumber = contactNumber || student.contactNumber;
+      student.facebookProfileLink = facebookProfileLink || student.facebookProfileLink;
+      await student.save();
+    }
+
+    // Update teacher's total bookings
     await Teacher.findByIdAndUpdate(
-      booking.teacherId,
-      { lastBookingDate: booking.date }
+      teacherId,
+      { $inc: { totalBookings: 1 } }
     );
+
+    // Populate teacher info before sending response
+    await booking.populate('teacherId', 'name majorSubject email');
 
     res.status(201).json({
       status: 'success',
@@ -146,7 +259,7 @@ export const updateBooking = async (req, res) => {
       req.params.id,
       req.body,
       { new: true, runValidators: true }
-    ).populate('teacherId', 'name subject');
+    ).populate('teacherId', 'name majorSubject');
     
     if (!booking) {
       return res.status(404).json({
@@ -172,7 +285,7 @@ export const updateBooking = async (req, res) => {
 // @access  Public
 export const deleteBooking = async (req, res) => {
   try {
-    const booking = await Booking.findByIdAndDelete(req.params.id);
+    const booking = await Booking.findById(req.params.id);
     
     if (!booking) {
       return res.status(404).json({
@@ -180,6 +293,18 @@ export const deleteBooking = async (req, res) => {
         message: 'Booking not found'
       });
     }
+
+    // Store teacherId before deletion
+    const teacherId = booking.teacherId;
+
+    // Delete the booking
+    await Booking.findByIdAndDelete(req.params.id);
+
+    // Decrement teacher's totalBookings
+    await Teacher.findByIdAndUpdate(
+      teacherId,
+      { $inc: { totalBookings: -1 } }
+    );
 
     res.status(200).json({
       status: 'success',

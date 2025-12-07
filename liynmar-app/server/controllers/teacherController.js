@@ -58,16 +58,10 @@ export const getAllTeachers = async (req, res) => {
           teacherId: teacher._id,
           isDeleted: false 
         });
-        
-        const lastBooking = await Booking.findOne({ 
-          teacherId: teacher._id,
-          isDeleted: false 
-        }).sort({ date: -1 });
 
         return {
           ...teacher.toObject(),
-          totalBookings: bookingCount,
-          lastBookingDate: lastBooking?.date || null
+          currentBookingCount: bookingCount
         };
       })
     );

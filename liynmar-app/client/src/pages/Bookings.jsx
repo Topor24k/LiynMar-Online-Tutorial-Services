@@ -19,15 +19,22 @@ const Bookings = ({ searchQuery = '' }) => {
     parentFacebook: '',
     subjectFocus: '',
     additionalNotes: '',
-    weeklySchedule: {
-      monday: { selected: false, time: '', duration: '1', subject: '', startDate: '' },
-      tuesday: { selected: false, time: '', duration: '1', subject: '', startDate: '' },
-      wednesday: { selected: false, time: '', duration: '1', subject: '', startDate: '' },
-      thursday: { selected: false, time: '', duration: '1', subject: '', startDate: '' },
-      friday: { selected: false, time: '', duration: '1', subject: '', startDate: '' },
-      saturday: { selected: false, time: '', duration: '1', subject: '', startDate: '' },
-      sunday: { selected: false, time: '', duration: '1', subject: '', startDate: '' },
-    }
+    weeks: [
+      {
+        id: Date.now(),
+        weekStartDate: null,
+        weekEndDate: null,
+        schedule: {
+          monday: { selected: false, time: '', duration: '1', subject: '' },
+          tuesday: { selected: false, time: '', duration: '1', subject: '' },
+          wednesday: { selected: false, time: '', duration: '1', subject: '' },
+          thursday: { selected: false, time: '', duration: '1', subject: '' },
+          friday: { selected: false, time: '', duration: '1', subject: '' },
+          saturday: { selected: false, time: '', duration: '1', subject: '' },
+          sunday: { selected: false, time: '', duration: '1', subject: '' },
+        }
+      }
+    ]
   });
 
   // Fetch active teachers from API
@@ -55,19 +62,90 @@ const Bookings = ({ searchQuery = '' }) => {
     const query = searchQuery.toLowerCase();
     return (
       teacher.name.toLowerCase().includes(query) ||
-      teacher.subject.toLowerCase().includes(query) ||
+      (teacher.majorSubject && teacher.majorSubject.toLowerCase().includes(query)) ||
+      (teacher.subject && teacher.subject.toLowerCase().includes(query)) ||
       teacher.email.toLowerCase().includes(query) ||
-      teacher.phone.toLowerCase().includes(query)
+      (teacher.contactNumber && teacher.contactNumber.toLowerCase().includes(query)) ||
+      (teacher.phone && teacher.phone.toLowerCase().includes(query))
     );
   });
 
   const handleBookTeacher = (teacher) => {
     setSelectedTeacher(teacher);
+    
+    // Get current week's Monday
+    const today = new Date();
+    const currentDay = today.getDay();
+    const diffToMonday = currentDay === 0 ? 1 : 1 - currentDay;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + diffToMonday);
+    monday.setHours(0, 0, 0, 0);
+    
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+    
     setBookingData({
       ...bookingData,
-      subjectFocus: teacher.subject,
+      subjectFocus: teacher.majorSubject || teacher.subject,
+      weeks: [
+        {
+          id: Date.now(),
+          weekStartDate: monday,
+          weekEndDate: sunday,
+          schedule: {
+            monday: { selected: false, time: '', duration: '1', subject: '' },
+            tuesday: { selected: false, time: '', duration: '1', subject: '' },
+            wednesday: { selected: false, time: '', duration: '1', subject: '' },
+            thursday: { selected: false, time: '', duration: '1', subject: '' },
+            friday: { selected: false, time: '', duration: '1', subject: '' },
+            saturday: { selected: false, time: '', duration: '1', subject: '' },
+            sunday: { selected: false, time: '', duration: '1', subject: '' },
+          }
+        }
+      ]
     });
     setShowBookingForm(true);
+  };
+
+  const addWeek = () => {
+    const lastWeek = bookingData.weeks[bookingData.weeks.length - 1];
+    const newWeekStart = new Date(lastWeek.weekStartDate);
+    newWeekStart.setDate(newWeekStart.getDate() + 7);
+    
+    const newWeekEnd = new Date(newWeekStart);
+    newWeekEnd.setDate(newWeekEnd.getDate() + 6);
+    newWeekEnd.setHours(23, 59, 59, 999);
+    
+    setBookingData({
+      ...bookingData,
+      weeks: [
+        ...bookingData.weeks,
+        {
+          id: Date.now(),
+          weekStartDate: newWeekStart,
+          weekEndDate: newWeekEnd,
+          schedule: {
+            monday: { selected: false, time: '', duration: '1', subject: '' },
+            tuesday: { selected: false, time: '', duration: '1', subject: '' },
+            wednesday: { selected: false, time: '', duration: '1', subject: '' },
+            thursday: { selected: false, time: '', duration: '1', subject: '' },
+            friday: { selected: false, time: '', duration: '1', subject: '' },
+            saturday: { selected: false, time: '', duration: '1', subject: '' },
+            sunday: { selected: false, time: '', duration: '1', subject: '' },
+          }
+        }
+      ]
+    });
+  };
+
+  const removeWeek = (weekIndex) => {
+    if (bookingData.weeks.length > 1) {
+      setBookingData({
+        ...bookingData,
+        weeks: bookingData.weeks.filter((_, index) => index !== weekIndex)
+      });
+    }
   };
 
   // Auto-encode pasted information
@@ -113,17 +191,6 @@ const Bookings = ({ searchQuery = '' }) => {
       }
     });
 
-    // Initialize weekly schedule
-    const weeklySchedule = {
-      monday: { selected: false, time: '', duration: '1', subject: '', startDate: '' },
-      tuesday: { selected: false, time: '', duration: '1', subject: '', startDate: '' },
-      wednesday: { selected: false, time: '', duration: '1', subject: '', startDate: '' },
-      thursday: { selected: false, time: '', duration: '1', subject: '', startDate: '' },
-      friday: { selected: false, time: '', duration: '1', subject: '', startDate: '' },
-      saturday: { selected: false, time: '', duration: '1', subject: '', startDate: '' },
-      sunday: { selected: false, time: '', duration: '1', subject: '', startDate: '' },
-    };
-
     // Helper function to convert 12-hour time to 24-hour format
     const convertTo24Hour = (timeStr) => {
       const time = timeStr.trim().toLowerCase();
@@ -150,52 +217,66 @@ const Bookings = ({ searchQuery = '' }) => {
       return `${hour.toString().padStart(2, '0')}:${min.padStart(2, '0')}`;
     };
 
-    // Helper function to parse date strings like "Dec 6" and convert to YYYY-MM-DD
+    // Helper function to parse date strings like "Dec 6" and convert to Date object
     const parseDate = (dateStr) => {
       const currentYear = new Date().getFullYear();
       const months = {
-        'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04',
-        'may': '05', 'jun': '06', 'jul': '07', 'aug': '08',
-        'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12'
+        'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3,
+        'may': 4, 'jun': 5, 'jul': 6, 'aug': 7,
+        'sep': 8, 'oct': 9, 'nov': 10, 'dec': 11
       };
       
       const match = dateStr.trim().toLowerCase().match(/(\w+)\s+(\d+)/);
       if (match) {
         const [, monthStr, day] = match;
-        const month = months[monthStr.substring(0, 3)];
-        if (month) {
-          return `${currentYear}-${month}-${day.padStart(2, '0')}`;
+        const monthIndex = months[monthStr.substring(0, 3)];
+        if (monthIndex !== undefined) {
+          return new Date(currentYear, monthIndex, parseInt(day));
         }
       }
-      return '';
+      return null;
     };
 
-    // Parse new "Date, Time, and Duration" format: "Dec 6, 6 AM Monday (30 mins), Dec 8, 7 AM Wednesday (1 hour)"
+    // Helper function to get Monday of a given date's week
+    const getMonday = (date) => {
+      const d = new Date(date);
+      const day = d.getDay();
+      const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+      const monday = new Date(d.setDate(diff));
+      monday.setHours(0, 0, 0, 0);
+      return monday;
+    };
+
+    // Helper function to get Sunday of a given date's week
+    const getSunday = (monday) => {
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      sunday.setHours(23, 59, 59, 999);
+      return sunday;
+    };
+
+    // Parse "Date, Time, and Duration" format and auto-create weeks
+    const allSessions = [];
+    
     if (data.dateTimeAndDuration) {
       const sessions = data.dateTimeAndDuration.split(',');
       
-      // Track multiple sessions per day
-      const daySessions = {};
       let i = 0;
-      
       while (i < sessions.length) {
         const sessionTrim = sessions[i].trim();
         
         // Try to match date pattern first: "Dec 6"
         const dateMatch = sessionTrim.match(/^(\w+\s+\d+)$/);
         if (dateMatch && i + 1 < sessions.length) {
-          // This is a date, get the next part which should be time, day, duration
-          const startDate = parseDate(dateMatch[1]);
+          const sessionDate = parseDate(dateMatch[1]);
           const nextPart = sessions[i + 1].trim();
           
           // Match pattern: "6 AM Monday (30 mins)"
           const sessionMatch = nextPart.match(/([\d:]+\s*(?:am|pm))\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s*\(([^)]+)\)/i);
           
-          if (sessionMatch) {
+          if (sessionMatch && sessionDate) {
             const [, timeStr, dayStr, durationStr] = sessionMatch;
             const day = dayStr.toLowerCase();
-            
-            // Convert time to 24-hour format
             const time24 = convertTo24Hour(timeStr);
             
             // Parse duration
@@ -211,106 +292,89 @@ const Bookings = ({ searchQuery = '' }) => {
               duration = '1';
             }
             
-            if (!daySessions[day]) {
-              daySessions[day] = [];
-            }
-            
-            daySessions[day].push({
+            allSessions.push({
+              date: sessionDate,
+              day: day,
               time: time24,
               duration: duration,
-              subject: '',
-              startDate: startDate
+              subject: ''
             });
             
-            i += 2; // Skip both date and session parts
+            i += 2;
             continue;
           }
         }
         i++;
       }
-      
-      // Set the schedule - use first session for each day
-      Object.keys(daySessions).forEach(day => {
-        if (weeklySchedule[day] && daySessions[day].length > 0) {
-          const firstSession = daySessions[day][0];
-          weeklySchedule[day].selected = true;
-          weeklySchedule[day].time = firstSession.time;
-          weeklySchedule[day].duration = firstSession.duration;
-          weeklySchedule[day].subject = firstSession.subject;
-          weeklySchedule[day].startDate = firstSession.startDate;
-        }
-      });
     }
 
-    // Parse old "Time and Duration" format: "6 AM Monday (30 mins), 7 AM Wednesday (1 hour)"
-    if (data.timeAndDuration) {
-      const sessions = data.timeAndDuration.split(',');
+    // Group sessions by week
+    const weekMap = new Map();
+    
+    allSessions.forEach(session => {
+      const monday = getMonday(session.date);
+      const weekKey = monday.getTime();
       
-      // Track multiple sessions per day
-      const daySessions = {};
+      if (!weekMap.has(weekKey)) {
+        weekMap.set(weekKey, {
+          weekStartDate: monday,
+          weekEndDate: getSunday(monday),
+          sessions: []
+        });
+      }
       
-      sessions.forEach(session => {
-        const sessionTrim = session.trim();
-        
-        // Match pattern: "6 AM Monday (30 mins) - Science" or "6:30 AM Tuesday (30 mins) - Math"
-        const match = sessionTrim.match(/([\d:]+\s*(?:am|pm))\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s*\(([^)]+)\)(?:\s*-\s*(.+))?/i);
-        
-        if (match) {
-          const [, timeStr, dayStr, durationStr, subjectStr] = match;
-          const day = dayStr.toLowerCase();
-          
-          // Convert time to 24-hour format
-          const time24 = convertTo24Hour(timeStr);
-          
-          // Parse duration
-          let duration = '1';
-          const durLower = durationStr.toLowerCase();
-          if (durLower.includes('30 min')) {
-            duration = '0.5';
-          } else if (durLower.includes('1.5 hour') || durLower.includes('1 hour 30')) {
-            duration = '1.5';
-          } else if (durLower.includes('2 hour')) {
-            duration = '2';
-          } else if (durLower.includes('1 hour')) {
-            duration = '1';
-          }
-          
-          // Extract subject if provided
-          const subject = subjectStr ? subjectStr.trim() : '';
-          
-          // For multiple sessions on the same day, we'll keep the first one in the main schedule
-          // and note the additional sessions (this is a limitation of the current UI structure)
-          if (!daySessions[day]) {
-            daySessions[day] = [];
-          }
-          
-          daySessions[day].push({
-            time: time24,
-            duration: duration,
-            subject: subject
-          });
-        }
+      weekMap.get(weekKey).sessions.push(session);
+    });
+
+    // Convert weekMap to weeks array
+    const weeks = Array.from(weekMap.values())
+      .sort((a, b) => a.weekStartDate - b.weekStartDate)
+      .map((week, index) => {
+        const schedule = {
+          monday: { selected: false, time: '', duration: '1', subject: '' },
+          tuesday: { selected: false, time: '', duration: '1', subject: '' },
+          wednesday: { selected: false, time: '', duration: '1', subject: '' },
+          thursday: { selected: false, time: '', duration: '1', subject: '' },
+          friday: { selected: false, time: '', duration: '1', subject: '' },
+          saturday: { selected: false, time: '', duration: '1', subject: '' },
+          sunday: { selected: false, time: '', duration: '1', subject: '' },
+        };
+
+        week.sessions.forEach(session => {
+          schedule[session.day] = {
+            selected: true,
+            time: session.time,
+            duration: session.duration,
+            subject: session.subject
+          };
+        });
+
+        return {
+          id: Date.now() + index,
+          weekStartDate: week.weekStartDate,
+          weekEndDate: week.weekEndDate,
+          schedule: schedule
+        };
       });
-      
-      // Set the schedule - use first session for each day
-      Object.keys(daySessions).forEach(day => {
-        if (weeklySchedule[day] && daySessions[day].length > 0) {
-          const firstSession = daySessions[day][0];
-          weeklySchedule[day].selected = true;
-          weeklySchedule[day].time = firstSession.time;
-          weeklySchedule[day].duration = firstSession.duration;
-          weeklySchedule[day].subject = firstSession.subject;
-          if (data.commonStartDate) {
-            weeklySchedule[day].startDate = data.commonStartDate;
-          }
-          
-          // If there are multiple sessions on the same day, combine subjects
-          if (daySessions[day].length > 1) {
-            const subjects = daySessions[day].map(s => s.subject).filter(s => s).join(' & ');
-            if (subjects) {
-              weeklySchedule[day].subject = subjects;
-            }
-          }
+
+    // If no weeks created from dates, create default current week
+    if (weeks.length === 0) {
+      const today = new Date();
+      const monday = getMonday(today);
+      const sunday = getSunday(monday);
+
+      weeks.push({
+        id: Date.now(),
+        weekStartDate: monday,
+        weekEndDate: sunday,
+        schedule: {
+          monday: { selected: false, time: '', duration: '1', subject: '' },
+          tuesday: { selected: false, time: '', duration: '1', subject: '' },
+          wednesday: { selected: false, time: '', duration: '1', subject: '' },
+          thursday: { selected: false, time: '', duration: '1', subject: '' },
+          friday: { selected: false, time: '', duration: '1', subject: '' },
+          saturday: { selected: false, time: '', duration: '1', subject: '' },
+          sunday: { selected: false, time: '', duration: '1', subject: '' },
         }
       });
     }
@@ -325,7 +389,27 @@ const Bookings = ({ searchQuery = '' }) => {
       parentFacebook: data.parentFacebook || bookingData.parentFacebook,
       subjectFocus: data.subjectFocus || bookingData.subjectFocus,
       additionalNotes: data.additionalNotes || bookingData.additionalNotes,
-      weeklySchedule
+      weeks: weeks
+    });
+  };
+
+  const handleDayToggle = (weekIndex, day) => {
+    const updatedWeeks = [...bookingData.weeks];
+    updatedWeeks[weekIndex].schedule[day].selected = !updatedWeeks[weekIndex].schedule[day].selected;
+    
+    setBookingData({
+      ...bookingData,
+      weeks: updatedWeeks
+    });
+  };
+
+  const handleScheduleChange = (weekIndex, day, field, value) => {
+    const updatedWeeks = [...bookingData.weeks];
+    updatedWeeks[weekIndex].schedule[day][field] = value;
+    
+    setBookingData({
+      ...bookingData,
+      weeks: updatedWeeks
     });
   };
 
@@ -334,32 +418,6 @@ const Bookings = ({ searchQuery = '' }) => {
     setBookingData({
       ...bookingData,
       [name]: value,
-    });
-  };
-
-  const handleDayToggle = (day) => {
-    setBookingData({
-      ...bookingData,
-      weeklySchedule: {
-        ...bookingData.weeklySchedule,
-        [day]: {
-          ...bookingData.weeklySchedule[day],
-          selected: !bookingData.weeklySchedule[day].selected,
-        }
-      }
-    });
-  };
-
-  const handleScheduleChange = (day, field, value) => {
-    setBookingData({
-      ...bookingData,
-      weeklySchedule: {
-        ...bookingData.weeklySchedule,
-        [day]: {
-          ...bookingData.weeklySchedule[day],
-          [field]: value,
-        }
-      }
     });
   };
 
@@ -394,146 +452,163 @@ const Bookings = ({ searchQuery = '' }) => {
 
   const calculateBookingSummary = () => {
     let totalSessions = 0;
-    let weeklyTotal = 0;
+    let grandTotal = 0;
     let totalTeacherShare = 0;
     let totalCompanyShare = 0;
-    const rateDetails = [];
+    const weekDetails = [];
 
-    Object.entries(bookingData.weeklySchedule).forEach(([day, schedule]) => {
-      if (schedule.selected) {
-        totalSessions++;
-        const duration = parseFloat(schedule.duration);
-        const shares = calculateShares(duration);
-        weeklyTotal += shares.totalRate;
-        totalTeacherShare += shares.teacherShare;
-        totalCompanyShare += shares.companyShare;
-        rateDetails.push({
-          day: day.charAt(0).toUpperCase() + day.slice(1),
-          duration: schedule.duration === '0.5' ? '30 mins' : 
-                    schedule.duration === '1' ? '1 hour' : 
-                    schedule.duration === '1.5' ? '1.5 hours' :
-                    schedule.duration === '2' ? '2 hours' :
-                    schedule.duration === '2.5' ? '2.5 hours' :
-                    schedule.duration === '3' ? '3 hours' :
-                    schedule.duration === '3.5' ? '3.5 hours' :
-                    schedule.duration === '4' ? '4 hours' :
-                    `${schedule.duration} hours`,
-          time: formatTime(schedule.time),
-          totalRate: shares.totalRate,
-          teacherShare: shares.teacherShare,
-          companyShare: shares.companyShare
+    bookingData.weeks.forEach((week, weekIndex) => {
+      let weeklyTotal = 0;
+      let weekTeacherShare = 0;
+      let weekCompanyShare = 0;
+      const dayDetails = [];
+
+      Object.entries(week.schedule).forEach(([day, schedule]) => {
+        if (schedule.selected) {
+          totalSessions++;
+          const duration = parseFloat(schedule.duration);
+          const shares = calculateShares(duration);
+          weeklyTotal += shares.totalRate;
+          weekTeacherShare += shares.teacherShare;
+          weekCompanyShare += shares.companyShare;
+          dayDetails.push({
+            day: day.charAt(0).toUpperCase() + day.slice(1),
+            duration: schedule.duration === '0.5' ? '30 mins' : 
+                      schedule.duration === '1' ? '1 hour' : 
+                      schedule.duration === '1.5' ? '1.5 hours' :
+                      schedule.duration === '2' ? '2 hours' :
+                      `${schedule.duration} hours`,
+            time: formatTime(schedule.time),
+            totalRate: shares.totalRate,
+            teacherShare: shares.teacherShare,
+            companyShare: shares.companyShare
+          });
+        }
+      });
+
+      if (dayDetails.length > 0) {
+        grandTotal += weeklyTotal;
+        totalTeacherShare += weekTeacherShare;
+        totalCompanyShare += weekCompanyShare;
+        weekDetails.push({
+          weekIndex,
+          weekStart: week.weekStartDate,
+          weekEnd: week.weekEndDate,
+          weeklyTotal,
+          weekTeacherShare,
+          weekCompanyShare,
+          days: dayDetails
         });
       }
     });
 
     return { 
       totalSessions, 
-      weeklyTotal, 
+      grandTotal, 
       totalTeacherShare, 
       totalCompanyShare, 
-      rateDetails 
+      weekDetails 
     };
   };
 
   const summary = selectedTeacher ? calculateBookingSummary() : { 
     totalSessions: 0, 
-    weeklyTotal: 0, 
+    grandTotal: 0, 
     totalTeacherShare: 0, 
     totalCompanyShare: 0, 
-    rateDetails: [] 
+    weekDetails: [] 
   };
 
-  const handleSubmitBooking = (e) => {
+  const handleSubmitBooking = async (e) => {
     e.preventDefault();
     
-    // Validate that at least one day is selected
-    const hasSelectedDays = Object.values(bookingData.weeklySchedule).some(s => s.selected);
+    // Validate that at least one week has at least one day selected
+    const hasSelectedDays = bookingData.weeks.some(week => 
+      Object.values(week.schedule).some(s => s.selected)
+    );
+    
     if (!hasSelectedDays) {
-      alert('Please select at least one day for sessions.');
+      toast.error('Please select at least one day for sessions.');
       return;
     }
 
-    // Calculate rate based on duration
-    const calculateRate = (duration) => {
-      const dur = parseFloat(duration);
-      const fullHours = Math.floor(dur);
-      const remaining = dur - fullHours;
-      return (fullHours * 125) + (remaining >= 0.5 ? 63 : 0);
-    };
-
-    // Create student object with schedule
-    const schedule = [];
-    Object.entries(bookingData.weeklySchedule).forEach(([day, data]) => {
-      if (data.selected) {
-        const duration = parseFloat(data.duration);
-        const durationText = duration === 0.5 ? '30 mins' : 
-                            duration === 1 ? '1 hour' :
-                            duration === 1.5 ? '1.5 hours' :
-                            duration === 2 ? '2 hours' :
-                            `${duration} hours`;
-        schedule.push({
-          day: day.toLowerCase(),
-          time: data.time,
-          duration: durationText,
-          subject: data.subject || bookingData.subjectFocus, // Use per-day subject or fallback to subject focus
-          startDate: data.startDate || bookingData.startDate, // Use per-day start date or fallback
-          rate: calculateRate(duration),
-          status: 'P' // Default to Pending
-        });
-      }
-    });
-
-    const newStudent = {
-      id: Date.now(),
-      name: bookingData.studentName,
-      parent: bookingData.parentName,
-      gradeLevel: bookingData.studentGrade,
-      subjectFocus: bookingData.subjectFocus, // Changed from 'subject' to 'subjectFocus'
-      schedule: schedule
-    };
-
-    // Get existing bookings from localStorage
-    const existingBookings = JSON.parse(localStorage.getItem('teacherBookings') || '{}');
-    
-    // Add new student to the teacher's bookings
-    if (!existingBookings[selectedTeacher._id]) {
-      existingBookings[selectedTeacher._id] = [];
+    // Validate required fields
+    if (!bookingData.studentName || !bookingData.studentGrade || !bookingData.parentName) {
+      toast.error('Please fill in all required fields (Student Name, Grade Level, Parent Name)');
+      return;
     }
-    existingBookings[selectedTeacher._id].push(newStudent);
-    
-    // Save to localStorage
-    localStorage.setItem('teacherBookings', JSON.stringify(existingBookings));
 
-    console.log('Booking submitted:', {
-      teacher: selectedTeacher,
-      booking: bookingData,
-      summary: summary
-    });
-    
-    alert('Booking confirmed successfully! The booking will now appear in the teacher\'s student list.');
-    setShowBookingForm(false);
-    setSelectedTeacher(null);
-    
-    // Reset form
-    setBookingData({
-      studentName: '',
-      studentGrade: '',
-      parentName: '',
-      parentPhone: '',
-      parentFacebook: '',
-      subject: '',
-      startDate: '',
-      additionalNotes: '',
-      weeklySchedule: {
-        monday: { selected: false, time: '', duration: '1' },
-        tuesday: { selected: false, time: '', duration: '1' },
-        wednesday: { selected: false, time: '', duration: '1' },
-        thursday: { selected: false, time: '', duration: '1' },
-        friday: { selected: false, time: '', duration: '1' },
-        saturday: { selected: false, time: '', duration: '1' },
-        sunday: { selected: false, time: '', duration: '1' },
-      }
-    });
+    try {
+      const getRateForDuration = (duration) => {
+        const rates = {
+          0.5: 63,   // 30 mins
+          1: 125,    // 1 hour
+          1.5: 188,  // 1.5 hours
+          2: 250     // 2 hours
+        };
+        return rates[duration] || 125;
+      };
+
+      // Create bookings for each week
+      const bookingPromises = [];
+      
+      bookingData.weeks.forEach(week => {
+        // Build weekly schedule object for this week
+        const weeklySchedule = {};
+        let totalEarnings = 0;
+        let hasScheduledDays = false;
+
+        Object.entries(week.schedule).forEach(([day, data]) => {
+          const duration = parseFloat(data.duration) || 1;
+          weeklySchedule[day] = {
+            isScheduled: data.selected,
+            duration: duration,
+            rate: getRateForDuration(duration)
+          };
+          
+          if (data.selected) {
+            hasScheduledDays = true;
+            totalEarnings += getRateForDuration(duration);
+          }
+        });
+
+        // Only create booking if this week has at least one scheduled day
+        if (hasScheduledDays) {
+          const bookingPayload = {
+            teacherId: selectedTeacher._id,
+            parentFbName: bookingData.parentName,
+            studentName: bookingData.studentName,
+            gradeLevel: bookingData.studentGrade,
+            subjectFocus: bookingData.subjectFocus || selectedTeacher.majorSubject || selectedTeacher.subject,
+            contactNumber: bookingData.parentPhone,
+            facebookProfileLink: bookingData.parentFacebook,
+            additionalNote: bookingData.additionalNotes,
+            weeklySchedule: weeklySchedule,
+            totalEarningsPerWeek: totalEarnings,
+            weekStartDate: week.weekStartDate.toISOString()
+          };
+
+          bookingPromises.push(bookingService.createBooking(bookingPayload));
+        }
+      });
+
+      // Create all bookings
+      await Promise.all(bookingPromises);
+
+      const weekText = bookingPromises.length === 1 ? '1 week' : `${bookingPromises.length} weeks`;
+      toast.success(`Successfully created bookings for ${weekText}! Student has been added to the system.`);
+      
+      setShowBookingForm(false);
+      setSelectedTeacher(null);
+      setAutoEncodeText('');
+
+      // Refresh teachers to update booking counts
+      await fetchTeachers();
+      
+    } catch (error) {
+      console.error('Error creating booking:', error);
+      toast.error(error.response?.data?.message || 'Failed to create booking. Please try again.');
+    }
   };
 
   const handleCancelBooking = () => {
@@ -583,8 +658,8 @@ const Bookings = ({ searchQuery = '' }) => {
                             <span>{teacher.name}</span>
                           </div>
                         </td>
-                        <td>{teacher.subject}</td>
-                        <td>{teacher.phone}</td>
+                        <td>{teacher.majorSubject || teacher.subject}</td>
+                        <td>{teacher.contactNumber || teacher.phone}</td>
                         <td>{teacher.email}</td>
                         <td>
                           <span className={`status-badge ${teacher.status}`}>
@@ -640,11 +715,11 @@ const Bookings = ({ searchQuery = '' }) => {
                     <div className="teacher-banner-info">
                       <h2 className="teacher-banner-name">{selectedTeacher.name}</h2>
                       <p className="teacher-banner-subject">
-                        <i className="fas fa-book"></i> {selectedTeacher.subject} Teacher
+                        <i className="fas fa-book"></i> {selectedTeacher.majorSubject || selectedTeacher.subject} Teacher
                       </p>
                       <div className="teacher-banner-meta">
                         <span><i className="fas fa-envelope"></i> {selectedTeacher.email}</span>
-                        <span><i className="fas fa-phone"></i> {selectedTeacher.phone}</span>
+                        <span><i className="fas fa-phone"></i> {selectedTeacher.contactNumber || selectedTeacher.phone}</span>
                       </div>
                     </div>
                   </div>
@@ -832,64 +907,83 @@ const Bookings = ({ searchQuery = '' }) => {
 
                     <div className="form-divider"></div>
 
-                    {/* Weekly Schedule */}
+                    {/* Weekly Schedules - Multiple Weeks */}
                     <div className="form-group full-width">
-                      <label className="schedule-label">
-                        <i className="fas fa-calendar-week icon-label"></i> Weekly Schedule *
-                      </label>
-                      <p className="form-help">Select days and configure session time, duration, and start date for each</p>
-                      <div className="weekly-schedule">
-                        {Object.entries(bookingData.weeklySchedule).map(([day, schedule]) => (
-                          <div key={day} className={`day-schedule ${schedule.selected ? 'selected' : ''}`}>
-                            <div className="day-header">
-                              <label className="checkbox-label">
-                                <input
-                                  type="checkbox"
-                                  checked={schedule.selected}
-                                  onChange={() => handleDayToggle(day)}
-                                />
-                                <span className="day-name">{day.charAt(0).toUpperCase() + day.slice(1)}</span>
-                              </label>
-                            </div>
-                            {schedule.selected && (
-                              <div className="day-details">
-                                <div className="detail-field">
-                                  <label>Time</label>
-                                  <input
-                                    type="time"
-                                    value={schedule.time}
-                                    onChange={(e) => handleScheduleChange(day, 'time', e.target.value)}
-                                  />
-                                </div>
-                                <div className="detail-field">
-                                  <label>Duration</label>
-                                  <select
-                                    value={schedule.duration}
-                                    onChange={(e) => handleScheduleChange(day, 'duration', e.target.value)}
-                                  >
-                                    <option value="0.5">30 mins</option>
-                                    <option value="1">1 hour</option>
-                                    <option value="1.5">1.5 hours</option>
-                                    <option value="2">2 hours</option>
-                                    <option value="2.5">2.5 hours</option>
-                                    <option value="3">3 hours</option>
-                                    <option value="3.5">3.5 hours</option>
-                                    <option value="4">4 hours</option>
-                                  </select>
-                                </div>
-                                <div className="detail-field">
-                                  <label>Start Date</label>
-                                  <input
-                                    type="date"
-                                    value={schedule.startDate}
-                                    onChange={(e) => handleScheduleChange(day, 'startDate', e.target.value)}
-                                  />
-                                </div>
-                              </div>
+                      <div className="schedule-header">
+                        <label className="schedule-label">
+                          <i className="fas fa-calendar-week icon-label"></i> Weekly Schedules *
+                        </label>
+                        <button 
+                          type="button" 
+                          className="btn-add-week"
+                          onClick={addWeek}
+                        >
+                          <i className="fas fa-plus"></i> Add Next Week
+                        </button>
+                      </div>
+                      <p className="form-help">Each week is a separate booking. Click "Add Next Week" to schedule additional weeks.</p>
+                      
+                      {bookingData.weeks.map((week, weekIndex) => (
+                        <div key={week.id} className="week-block">
+                          <div className="week-block-header">
+                            <h4>
+                              <i className="fas fa-calendar-alt"></i> 
+                              Week {weekIndex + 1}: {week.weekStartDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - {week.weekEndDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </h4>
+                            {bookingData.weeks.length > 1 && (
+                              <button
+                                type="button"
+                                className="btn-remove-week"
+                                onClick={() => removeWeek(weekIndex)}
+                                title="Remove this week"
+                              >
+                                <i className="fas fa-trash"></i>
+                              </button>
                             )}
                           </div>
-                        ))}
-                      </div>
+                          
+                          <div className="weekly-schedule">
+                            {Object.entries(week.schedule).map(([day, schedule]) => (
+                              <div key={day} className={`day-schedule ${schedule.selected ? 'selected' : ''}`}>
+                                <div className="day-header">
+                                  <label className="checkbox-label">
+                                    <input
+                                      type="checkbox"
+                                      checked={schedule.selected}
+                                      onChange={() => handleDayToggle(weekIndex, day)}
+                                    />
+                                    <span className="day-name">{day.charAt(0).toUpperCase() + day.slice(1)}</span>
+                                  </label>
+                                </div>
+                                {schedule.selected && (
+                                  <div className="day-details">
+                                    <div className="detail-field">
+                                      <label>Time</label>
+                                      <input
+                                        type="time"
+                                        value={schedule.time}
+                                        onChange={(e) => handleScheduleChange(weekIndex, day, 'time', e.target.value)}
+                                      />
+                                    </div>
+                                    <div className="detail-field">
+                                      <label>Duration</label>
+                                      <select
+                                        value={schedule.duration}
+                                        onChange={(e) => handleScheduleChange(weekIndex, day, 'duration', e.target.value)}
+                                      >
+                                        <option value="0.5">30 mins</option>
+                                        <option value="1">1 hour</option>
+                                        <option value="1.5">1.5 hours</option>
+                                        <option value="2">2 hours</option>
+                                      </select>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
                     </div>
 
                     <div className="form-divider"></div>
@@ -940,47 +1034,72 @@ const Bookings = ({ searchQuery = '' }) => {
                 <div className="card-body">
                   <div className="summary-section">
                     <div className="summary-item">
-                      <span className="summary-label">Total Sessions per Week</span>
+                      <span className="summary-label">Total Weeks</span>
+                      <span className="summary-value">{bookingData.weeks.length}</span>
+                    </div>
+                    <div className="summary-item">
+                      <span className="summary-label">Total Sessions</span>
                       <span className="summary-value">{summary.totalSessions}</span>
                     </div>
                   </div>
 
-                  <div className="summary-section">
-                    <h4 className="summary-subtitle">Session Details</h4>
-                    {summary.rateDetails.length > 0 ? (
-                      summary.rateDetails.map((detail, idx) => (
-                        <div key={idx} className="rate-detail">
-                          <div className="rate-day">{detail.day}</div>
-                          <div className="rate-info">
-                            {detail.time} • {detail.duration}
+                  {summary.weekDetails.length > 0 ? (
+                    summary.weekDetails.map((weekDetail, weekIdx) => (
+                      <div key={weekIdx} className="summary-section">
+                        <h4 className="summary-subtitle">
+                          <i className="fas fa-calendar-alt"></i> Week {weekDetail.weekIndex + 1}
+                        </h4>
+                        <div className="week-date-range">
+                          {weekDetail.weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {weekDetail.weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </div>
+                        
+                        {weekDetail.days.map((day, idx) => (
+                          <div key={idx} className="rate-detail">
+                            <div className="rate-day">{day.day}</div>
+                            <div className="rate-info">
+                              {day.time} • {day.duration}
+                            </div>
+                            <div className="rate-breakdown">
+                              <div className="rate-amount">₱{day.totalRate.toFixed(2)}</div>
+                              <div className="rate-shares">
+                                <span className="share-teacher">Teacher: ₱{day.teacherShare.toFixed(2)}</span>
+                                <span className="share-company">Company: ₱{day.companyShare.toFixed(2)}</span>
+                              </div>
+                            </div>
                           </div>
+                        ))}
+                        
+                        <div className="week-total">
+                          <div className="rate-day">Week Total</div>
                           <div className="rate-breakdown">
-                            <div className="rate-amount">₱{detail.totalRate.toFixed(2)}</div>
+                            <div className="rate-amount">₱{weekDetail.weeklyTotal.toFixed(2)}</div>
                             <div className="rate-shares">
-                              <span className="share-teacher">Teacher: ₱{detail.teacherShare}</span>
-                              <span className="share-company">Company: ₱{detail.companyShare}</span>
+                              <span className="share-teacher">Teacher: ₱{weekDetail.weekTeacherShare.toFixed(2)}</span>
+                              <span className="share-company">Company: ₱{weekDetail.weekCompanyShare.toFixed(2)}</span>
                             </div>
                           </div>
                         </div>
-                      ))
-                    ) : (
-                      <p className="text-muted small">No days selected yet</p>
-                    )}
-                  </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-muted small">No days selected yet</p>
+                  )}
 
-                  <div className="summary-total">
-                    <h4 className="summary-subtitle">Weekly Summary</h4>
-                    <div className="rate-detail">
-                      <div className="rate-day">Weekly Total</div>
-                      <div className="rate-breakdown">
-                        <div className="rate-amount">₱{summary.weeklyTotal.toFixed(2)}</div>
-                        <div className="rate-shares">
-                          <span className="share-teacher">Teacher: ₱{summary.totalTeacherShare.toFixed(2)}</span>
-                          <span className="share-company">Company: ₱{summary.totalCompanyShare.toFixed(2)}</span>
+                  {summary.weekDetails.length > 1 && (
+                    <div className="summary-total">
+                      <h4 className="summary-subtitle">Grand Total ({bookingData.weeks.length} weeks)</h4>
+                      <div className="rate-detail">
+                        <div className="rate-day">All Weeks</div>
+                        <div className="rate-breakdown">
+                          <div className="rate-amount grand-total">₱{summary.grandTotal.toFixed(2)}</div>
+                          <div className="rate-shares">
+                            <span className="share-teacher">Teacher: ₱{summary.totalTeacherShare.toFixed(2)}</span>
+                            <span className="share-company">Company: ₱{summary.totalCompanyShare.toFixed(2)}</span>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  )}
 
                   <div className="summary-note">
                     <i className="fas fa-info-circle"></i>

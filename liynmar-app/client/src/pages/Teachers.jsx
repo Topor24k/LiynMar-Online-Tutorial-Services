@@ -13,10 +13,10 @@ const Teachers = ({ searchQuery = '' }) => {
   const [deletedTeachers, setDeletedTeachers] = useState([]);
   const [newTeacher, setNewTeacher] = useState({
     name: '',
-    subject: '',
-    phone: '',
+    majorSubject: '',
+    contactNumber: '',
     email: '',
-    facebook: '',
+    facebookAccount: '',
     status: 'active',
     jobExperience: [{
       jobTitle: '',
@@ -69,10 +69,10 @@ const Teachers = ({ searchQuery = '' }) => {
         filtered = teachersData.filter(t => t.status === 'inactive');
         break;
       case 'least-booked':
-        filtered = [...teachersData].sort((a, b) => (a.bookingsCount || 0) - (b.bookingsCount || 0));
+        filtered = [...teachersData].sort((a, b) => ((a.currentBookingCount || a.totalBookings || 0) - (b.currentBookingCount || b.totalBookings || 0)));
         break;
       case 'most-booked':
-        filtered = [...teachersData].sort((a, b) => (b.bookingsCount || 0) - (a.bookingsCount || 0));
+        filtered = [...teachersData].sort((a, b) => ((b.currentBookingCount || b.totalBookings || 0) - (a.currentBookingCount || a.totalBookings || 0)));
         break;
       case 'all':
       default:
@@ -85,9 +85,11 @@ const Teachers = ({ searchQuery = '' }) => {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter((teacher) =>
         teacher.name.toLowerCase().includes(query) ||
-        teacher.subject.toLowerCase().includes(query) ||
+        (teacher.majorSubject && teacher.majorSubject.toLowerCase().includes(query)) ||
+        (teacher.subject && teacher.subject.toLowerCase().includes(query)) ||
         teacher.email.toLowerCase().includes(query) ||
-        teacher.phone.toLowerCase().includes(query) ||
+        (teacher.contactNumber && teacher.contactNumber.toLowerCase().includes(query)) ||
+        (teacher.phone && teacher.phone.toLowerCase().includes(query)) ||
         (teacher.status && teacher.status.toLowerCase().includes(query))
       );
     }
@@ -108,10 +110,10 @@ const Teachers = ({ searchQuery = '' }) => {
       setShowAddForm(false);
       setNewTeacher({
         name: '',
-        subject: '',
-        phone: '',
+        majorSubject: '',
+        contactNumber: '',
         email: '',
-        facebook: '',
+        facebookAccount: '',
         status: 'active',
         jobExperience: [{
           jobTitle: '',
@@ -305,8 +307,8 @@ const Teachers = ({ searchQuery = '' }) => {
                   <label>Major Subject *</label>
                   <input
                     type="text"
-                    name="subject"
-                    value={newTeacher.subject}
+                    name="majorSubject"
+                    value={newTeacher.majorSubject}
                     onChange={handleInputChange}
                     required
                   />
@@ -315,8 +317,8 @@ const Teachers = ({ searchQuery = '' }) => {
                   <label>Contact Number *</label>
                   <input
                     type="text"
-                    name="phone"
-                    value={newTeacher.phone}
+                    name="contactNumber"
+                    value={newTeacher.contactNumber}
                     onChange={handleInputChange}
                     required
                   />
@@ -335,8 +337,8 @@ const Teachers = ({ searchQuery = '' }) => {
                   <label>Facebook Account</label>
                   <input
                     type="text"
-                    name="facebook"
-                    value={newTeacher.facebook}
+                    name="facebookAccount"
+                    value={newTeacher.facebookAccount}
                     onChange={handleInputChange}
                   />
                 </div>
@@ -485,11 +487,11 @@ const Teachers = ({ searchQuery = '' }) => {
                         <span>{teacher.name}</span>
                       </div>
                     </td>
-                    <td>{teacher.subject}</td>
-                    <td>{teacher.phone}</td>
+                    <td>{teacher.majorSubject || teacher.subject}</td>
+                    <td>{teacher.contactNumber || teacher.phone}</td>
                     <td>{teacher.email}</td>
                     <td>
-                      <span className="booking-count">{teacher.bookingsCount || 0}</span>
+                      <span className="booking-count">{teacher.currentBookingCount || teacher.totalBookings || 0}</span>
                     </td>
                     <td>
                       {activeFilter === 'deleted' ? (

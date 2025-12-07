@@ -86,9 +86,8 @@ const Dashboard = () => {
     let revenue = 0;
     
     dashboardData.bookings.forEach(booking => {
-      if (booking.status === 'completed' || booking.status === 'confirmed') {
-        const shares = calculateShares(booking.duration || '1 hour', booking.rate || 200);
-        revenue += shares.companyShare;
+      if (booking.status === 'completed' || booking.status === 'active') {
+        revenue += booking.totalEarningsPerWeek || 0;
       }
     });
 
@@ -103,63 +102,59 @@ const Dashboard = () => {
 
   const metrics = getMetrics();
 
-  // Revenue Graph Data - Using real session data
+  // Revenue Graph Data - Using real booking data
   const revenueData = useMemo(() => {
-    // For now, show aggregate data (can be enhanced with date filtering)
-    const paidSessions = dashboardData.sessions.filter(s => s.status === 'C' || s.status === 'A');
-    
     if (timePeriod === 'week') {
       const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
       const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       const values = days.map(day => {
-        const daySessions = paidSessions.filter(s => s.day === day);
-        return daySessions.reduce((sum, s) => {
-          const shares = calculateShares(s.duration, s.rate);
-          return sum + shares.companyShare;
-        }, 0);
+        // Sum earnings for bookings that have this day scheduled
+        return dashboardData.bookings
+          .filter(b => b.weeklySchedule && b.weeklySchedule[day])
+          .reduce((sum, b) => sum + (b.totalEarningsPerWeek || 0) / 7, 0); // Divide weekly by 7 for daily
       });
       return { labels, values };
     } else if (timePeriod === 'month') {
-      // Simulate 4 weeks
-      const weekRevenue = paidSessions.reduce((sum, s) => {
-        const shares = calculateShares(s.duration, s.rate);
-        return sum + shares.companyShare;
-      }, 0);
+      // Calculate weekly totals
+      const weeklyTotal = dashboardData.bookings.reduce((sum, b) => 
+        sum + (b.totalEarningsPerWeek || 0), 0
+      );
       return {
         labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-        values: [weekRevenue, weekRevenue, weekRevenue, weekRevenue]
+        values: [weeklyTotal, weeklyTotal, weeklyTotal, weeklyTotal]
       };
     } else {
-      // Simulate 12 months
-      const monthRevenue = paidSessions.reduce((sum, s) => {
-        const shares = calculateShares(s.duration, s.rate);
-        return sum + shares.companyShare;
-      }, 0) * 4;
+      // Calculate monthly totals (weekly * 4)
+      const monthlyTotal = dashboardData.bookings.reduce((sum, b) => 
+        sum + (b.totalEarningsPerWeek || 0), 0
+      ) * 4;
       return {
         labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-        values: Array(12).fill(monthRevenue)
+        values: Array(12).fill(monthlyTotal)
       };
     }
-  }, [timePeriod, dashboardData.sessions]);
+  }, [timePeriod, dashboardData.bookings]);
 
-  // Session Status Data - Using real session data
+  // Session Status Data - Using real booking data
   const sessionData = useMemo(() => {
-    const completed = dashboardData.sessions.filter(s => s.status === 'C').length;
-    const studentAbsent = dashboardData.sessions.filter(s => s.status === 'S').length;
-    const teacherAbsent = dashboardData.sessions.filter(s => s.status === 'T').length;
+    const activeBookings = dashboardData.bookings.filter(b => b.status === 'active').length;
+    const completedBookings = dashboardData.bookings.filter(b => b.status === 'completed').length;
+    const pendingBookings = dashboardData.bookings.filter(b => b.status === 'pending').length;
     
-    return { completed, studentAbsent, teacherAbsent };
-  }, [dashboardData.sessions]);
+    return { 
+      completed: completedBookings, 
+      studentAbsent: pendingBookings, // Using pending as a proxy
+      teacherAbsent: 0 
+    };
+  }, [dashboardData.bookings]);
 
   // Most Booked Subjects - Using real booking data
   const subjectData = useMemo(() => {
     const subjectCounts = {};
     
-    Object.values(dashboardData.bookings).forEach(students => {
-      students.forEach(student => {
-        const subject = student.subject;
-        subjectCounts[subject] = (subjectCounts[subject] || 0) + 1;
-      });
+    dashboardData.bookings.forEach(booking => {
+      const subject = booking.subjectFocus || 'Unknown';
+      subjectCounts[subject] = (subjectCounts[subject] || 0) + 1;
     });
 
     return Object.entries(subjectCounts)
@@ -173,28 +168,26 @@ const Dashboard = () => {
     const teacherStats = {};
 
     // Calculate bookings and earnings per teacher
-    Object.entries(dashboardData.bookings).forEach(([teacherId, students]) => {
+    dashboardData.bookings.forEach(booking => {
+      const teacherId = booking.teacherId?._id || booking.teacherId;
       const teacher = dashboardData.teachers.find(t => t._id === teacherId);
       if (!teacher) return;
 
-      let totalBookings = students.length;
-      let totalEarnings = 0;
+      if (!teacherStats[teacherId]) {
+        teacherStats[teacherId] = {
+          name: teacher.name,
+          subject: teacher.majorSubject || teacher.subject,
+          bookings: 0,
+          earnings: 0
+        };
+      }
 
-      students.forEach(student => {
-        student.schedule.forEach(session => {
-          if (session.status === 'C' || session.status === 'A') {
-            const shares = calculateShares(session.duration, session.rate);
-            totalEarnings += shares.teacherShare;
-          }
-        });
-      });
-
-      teacherStats[teacherId] = {
-        name: teacher.name,
-        subject: teacher.subject,
-        bookings: totalBookings,
-        earnings: Math.round(totalEarnings)
-      };
+      teacherStats[teacherId].bookings += 1;
+      
+      // Calculate earnings from weekly schedule
+      if (booking.status === 'active' || booking.status === 'completed') {
+        teacherStats[teacherId].earnings += booking.totalEarningsPerWeek || 0;
+      }
     });
 
     return Object.values(teacherStats)
@@ -202,7 +195,8 @@ const Dashboard = () => {
       .slice(0, 10)
       .map((teacher, index) => ({
         rank: index + 1,
-        ...teacher
+        ...teacher,
+        earnings: Math.round(teacher.earnings)
       }));
   }, [dashboardData.bookings, dashboardData.teachers]);
 
@@ -439,7 +433,7 @@ const Dashboard = () => {
                     </div>
                     <div className="teacher-info">
                       <div className="teacher-name">{teacher.name}</div>
-                      <div className="teacher-subject">{teacher.subject}</div>
+                      <div className="teacher-subject">{teacher.majorSubject || teacher.subject}</div>
                     </div>
                     <div className="teacher-stats">
                       <div className="stat-item">

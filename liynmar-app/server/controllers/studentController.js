@@ -15,7 +15,7 @@ export const getAllStudents = async (req, res) => {
     }
 
     const students = await Student.find(query)
-      .populate('assignedTeacherId', 'name subject')
+      .populate('assignedTeacherForTheWeek', 'name majorSubject')
       .sort({ createdAt: -1 });
 
     res.status(200).json({
@@ -37,7 +37,7 @@ export const getAllStudents = async (req, res) => {
 export const getDeletedStudents = async (req, res) => {
   try {
     const students = await Student.find({ isDeleted: true })
-      .populate('assignedTeacherId', 'name subject')
+      .populate('assignedTeacherForTheWeek', 'name majorSubject')
       .sort({ deletedAt: -1 });
     
     res.status(200).json({
@@ -59,7 +59,7 @@ export const getDeletedStudents = async (req, res) => {
 export const getStudentById = async (req, res) => {
   try {
     const student = await Student.findById(req.params.id)
-      .populate('assignedTeacherId', 'name subject email phone');
+      .populate('assignedTeacherForTheWeek', 'name majorSubject email contactNumber');
     
     if (!student) {
       return res.status(404).json({
