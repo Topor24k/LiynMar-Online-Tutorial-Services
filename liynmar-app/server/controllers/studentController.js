@@ -85,6 +85,29 @@ export const getStudentById = async (req, res) => {
 // @access  Public
 export const createStudent = async (req, res) => {
   try {
+    const { studentName, parentFbName } = req.body;
+    
+    // Check if student already exists (case-insensitive)
+    const existingStudent = await Student.findOne({
+      studentName: { $regex: new RegExp(`^${studentName}$`, 'i') },
+      parentFbName: { $regex: new RegExp(`^${parentFbName}$`, 'i') },
+      isDeleted: false
+    });
+
+    if (existingStudent) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Student already exists',
+        existingStudent: {
+          _id: existingStudent._id,
+          studentName: existingStudent.studentName,
+          parentFbName: existingStudent.parentFbName,
+          gradeLevel: existingStudent.gradeLevel,
+          assignedTeacherForTheWeek: existingStudent.assignedTeacherForTheWeek
+        }
+      });
+    }
+
     const student = await Student.create(req.body);
     
     res.status(201).json({
@@ -228,7 +251,7 @@ export const permanentDeleteStudent = async (req, res) => {
 // @access  Public
 export const assignTeacher = async (req, res) => {
   try {
-    const { teacherId } = req.body;
+    const { teacherId, weeklySchedule } = req.body;
     
     // Verify teacher exists and is active
     const teacher = await Teacher.findOne({ 
@@ -244,11 +267,20 @@ export const assignTeacher = async (req, res) => {
       });
     }
 
+    const updateData = { 
+      assignedTeacherForTheWeek: teacherId 
+    };
+    
+    // Add weekly schedule if provided
+    if (weeklySchedule) {
+      updateData.weeklySchedule = weeklySchedule;
+    }
+
     const student = await Student.findByIdAndUpdate(
       req.params.id,
-      { assignedTeacherId: teacherId },
+      updateData,
       { new: true }
-    ).populate('assignedTeacherId', 'name subject');
+    ).populate('assignedTeacherForTheWeek', 'name majorSubject');
     
     if (!student) {
       return res.status(404).json({
@@ -277,7 +309,10 @@ export const unassignTeacher = async (req, res) => {
   try {
     const student = await Student.findByIdAndUpdate(
       req.params.id,
-      { assignedTeacherId: null },
+      { 
+        assignedTeacherForTheWeek: null,
+        weeklySchedule: new Map()
+      },
       { new: true }
     );
     
@@ -292,6 +327,54 @@ export const unassignTeacher = async (req, res) => {
       status: 'success',
       message: 'Teacher unassigned successfully',
       data: student
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+};
+
+// @desc    Find and remove duplicate students
+// @route   POST /api/students/remove-duplicates
+// @access  Public
+export const removeDuplicates = async (req, res) => {
+  try {
+    // Find all non-deleted students
+    const allStudents = await Student.find({ isDeleted: false }).sort({ createdAt: 1 });
+    
+    const seen = new Map(); // key: "studentName|parentFbName", value: first student record
+    const duplicatesToDelete = [];
+    
+    for (const student of allStudents) {
+      const key = `${student.studentName.toLowerCase()}|${student.parentFbName.toLowerCase()}`;
+      
+      if (seen.has(key)) {
+        // This is a duplicate - mark for deletion
+        duplicatesToDelete.push(student._id);
+      } else {
+        // This is the first occurrence - keep it
+        seen.set(key, student);
+      }
+    }
+    
+    // Soft delete the duplicates
+    if (duplicatesToDelete.length > 0) {
+      await Student.updateMany(
+        { _id: { $in: duplicatesToDelete } },
+        { 
+          isDeleted: true,
+          deletedAt: new Date()
+        }
+      );
+    }
+    
+    res.status(200).json({
+      status: 'success',
+      message: `Removed ${duplicatesToDelete.length} duplicate students`,
+      removedCount: duplicatesToDelete.length,
+      removedIds: duplicatesToDelete
     });
   } catch (error) {
     res.status(500).json({

@@ -24,6 +24,16 @@ const studentSchema = new mongoose.Schema({
     ref: 'Teacher',
     default: null
   },
+  weeklySchedule: {
+    type: Map,
+    of: {
+      selected: { type: Boolean, default: false },
+      time: { type: String, default: '' },
+      duration: { type: String, default: '1' },
+      subject: { type: String, default: '' }
+    },
+    default: () => new Map()
+  },
   contactNumber: {
     type: String,
     trim: true
@@ -50,6 +60,8 @@ const studentSchema = new mongoose.Schema({
 
 // Indexes
 studentSchema.index({ studentName: 1 });
+studentSchema.index({ parentFbName: 1 });
+studentSchema.index({ studentName: 1, parentFbName: 1 }, { unique: true });
 studentSchema.index({ status: 1 });
 studentSchema.index({ isDeleted: 1 });
 studentSchema.index({ assignedTeacherForTheWeek: 1 });

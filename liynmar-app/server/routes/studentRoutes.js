@@ -9,7 +9,8 @@ import {
   permanentDeleteStudent,
   getDeletedStudents,
   assignTeacher,
-  unassignTeacher
+  unassignTeacher,
+  removeDuplicates
 } from '../controllers/studentController.js';
 
 const router = express.Router();
@@ -19,6 +20,9 @@ router.get('/', getAllStudents);
 
 // Get deleted students
 router.get('/deleted', getDeletedStudents);
+
+// Remove duplicate students
+router.post('/remove-duplicates', removeDuplicates);
 
 // Get single student by ID
 router.get('/:id', getStudentById);

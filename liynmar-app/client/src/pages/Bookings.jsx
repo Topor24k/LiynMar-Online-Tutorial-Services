@@ -551,8 +551,9 @@ const Bookings = ({ searchQuery = '' }) => {
 
       // Create bookings for each week
       const bookingPromises = [];
+      let studentCreated = false;
       
-      bookingData.weeks.forEach(week => {
+      for (const week of bookingData.weeks) {
         // Build weekly schedule object for this week
         const weeklySchedule = {};
         let totalEarnings = 0;
@@ -585,17 +586,28 @@ const Bookings = ({ searchQuery = '' }) => {
             additionalNote: bookingData.additionalNotes,
             weeklySchedule: weeklySchedule,
             totalEarningsPerWeek: totalEarnings,
-            weekStartDate: week.weekStartDate.toISOString()
+            weekStartDate: week.weekStartDate.toISOString(),
+            skipStudentCreation: studentCreated // Skip student creation after first booking
           };
 
-          bookingPromises.push(bookingService.createBooking(bookingPayload));
+          // Create first booking and wait for it (this will create the student)
+          if (!studentCreated) {
+            await bookingService.createBooking(bookingPayload);
+            studentCreated = true;
+          } else {
+            // For subsequent weeks, add to promises to create in parallel
+            bookingPromises.push(bookingService.createBooking(bookingPayload));
+          }
         }
-      });
+      }
 
-      // Create all bookings
-      await Promise.all(bookingPromises);
+      // Create remaining bookings in parallel
+      if (bookingPromises.length > 0) {
+        await Promise.all(bookingPromises);
+      }
 
-      const weekText = bookingPromises.length === 1 ? '1 week' : `${bookingPromises.length} weeks`;
+      const totalWeeks = (studentCreated ? 1 : 0) + bookingPromises.length;
+      const weekText = totalWeeks === 1 ? '1 week' : `${totalWeeks} weeks`;
       toast.success(`Successfully created bookings for ${weekText}! Student has been added to the system.`);
       
       setShowBookingForm(false);

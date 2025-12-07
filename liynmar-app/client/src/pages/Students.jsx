@@ -6,6 +6,8 @@ import './Students.css';
 
 const Students = ({ searchQuery = '' }) => {
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [selectedStudentForAssignment, setSelectedStudentForAssignment] = useState(null);
   const [activeFilter, setActiveFilter] = useState('all'); // 'all', 'active', 'inactive', 'deleted'
   const [loading, setLoading] = useState(true);
   const [studentsData, setStudentsData] = useState([]);
@@ -15,7 +17,29 @@ const Students = ({ searchQuery = '' }) => {
     parentFbName: '',
     studentName: '',
     gradeLevel: '',
+    contactNumber: '',
+    facebookProfileLink: '',
     status: 'active'
+  });
+  const [assignmentData, setAssignmentData] = useState({
+    teacherId: '',
+    subjectFocus: '',
+    weeks: [
+      {
+        id: Date.now(),
+        weekStartDate: null,
+        weekEndDate: null,
+        schedule: {
+          monday: { selected: false, time: '', duration: '1', subject: '' },
+          tuesday: { selected: false, time: '', duration: '1', subject: '' },
+          wednesday: { selected: false, time: '', duration: '1', subject: '' },
+          thursday: { selected: false, time: '', duration: '1', subject: '' },
+          friday: { selected: false, time: '', duration: '1', subject: '' },
+          saturday: { selected: false, time: '', duration: '1', subject: '' },
+          sunday: { selected: false, time: '', duration: '1', subject: '' },
+        }
+      }
+    ]
   });
 
   // Fetch students and teachers from API
@@ -56,16 +80,27 @@ const Students = ({ searchQuery = '' }) => {
 
   // Get assigned teacher for a student
   const getAssignedTeacher = (student) => {
-    if (!student.assignedTeacher) return 'Not Assigned';
-    
-    // If assignedTeacher is populated (has name property)
-    if (typeof student.assignedTeacher === 'object' && student.assignedTeacher.name) {
-      return student.assignedTeacher.name;
+    // Check assignedTeacherForTheWeek first (new field)
+    if (student.assignedTeacherForTheWeek) {
+      // If populated (has name property)
+      if (typeof student.assignedTeacherForTheWeek === 'object' && student.assignedTeacherForTheWeek.name) {
+        return student.assignedTeacherForTheWeek.name;
+      }
+      // If just an ID, find the teacher
+      const teacher = teachersData.find(t => t._id === student.assignedTeacherForTheWeek);
+      return teacher ? teacher.name : 'Not Assigned';
     }
     
-    // If assignedTeacher is just an ID, find the teacher
-    const teacher = teachersData.find(t => t._id === student.assignedTeacher);
-    return teacher ? teacher.name : 'Not Assigned';
+    // Fallback to old assignedTeacher field for backward compatibility
+    if (student.assignedTeacher) {
+      if (typeof student.assignedTeacher === 'object' && student.assignedTeacher.name) {
+        return student.assignedTeacher.name;
+      }
+      const teacher = teachersData.find(t => t._id === student.assignedTeacher);
+      return teacher ? teacher.name : 'Not Assigned';
+    }
+    
+    return 'Not Assigned';
   };
 
   // Filter and sort students
@@ -105,6 +140,19 @@ const Students = ({ searchQuery = '' }) => {
         break;
     }
 
+    // Remove duplicates by _id - keep only unique students
+    const uniqueStudents = [];
+    const seenIds = new Set();
+    
+    filtered.forEach(student => {
+      if (!seenIds.has(student._id)) {
+        seenIds.add(student._id);
+        uniqueStudents.push(student);
+      }
+    });
+    
+    filtered = uniqueStudents;
+
     // Apply search query filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
@@ -136,12 +184,21 @@ const Students = ({ searchQuery = '' }) => {
         parentFbName: '',
         studentName: '',
         gradeLevel: '',
+        contactNumber: '',
+        facebookProfileLink: '',
         status: 'active'
       });
       
       await fetchData();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to add student');
+      // Check if it's a duplicate student error
+      if (error.response?.data?.existingStudent) {
+        const existing = error.response.data.existingStudent;
+        const message = `Student "${existing.studentName}" (Parent: ${existing.parentFbName}) already exists. ${existing.assignedTeacherForTheWeek ? 'Already has an assigned teacher.' : 'You can assign a teacher to the existing student.'}`;
+        toast.warning(message, { autoClose: 5000 });
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to add student');
+      }
     } finally {
       setLoading(false);
     }
@@ -207,30 +264,145 @@ const Students = ({ searchQuery = '' }) => {
   };
 
   const handleAssignTeacher = async (studentId) => {
-    const activeTeachers = getActiveTeachers();
+    const student = studentsData.find(s => s._id === studentId);
+    if (!student) return;
+
+    // Get current week's Monday
+    const today = new Date();
+    const currentDay = today.getDay();
+    const diffToMonday = currentDay === 0 ? 1 : 1 - currentDay;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + diffToMonday);
+    monday.setHours(0, 0, 0, 0);
     
-    if (activeTeachers.length === 0) {
-      toast.warning('No active teachers available for assignment');
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+
+    setSelectedStudentForAssignment(student);
+    setAssignmentData({
+      teacherId: '',
+      subjectFocus: '',
+      weeks: [
+        {
+          id: Date.now(),
+          weekStartDate: monday,
+          weekEndDate: sunday,
+          schedule: {
+            monday: { selected: false, time: '', duration: '1', subject: '' },
+            tuesday: { selected: false, time: '', duration: '1', subject: '' },
+            wednesday: { selected: false, time: '', duration: '1', subject: '' },
+            thursday: { selected: false, time: '', duration: '1', subject: '' },
+            friday: { selected: false, time: '', duration: '1', subject: '' },
+            saturday: { selected: false, time: '', duration: '1', subject: '' },
+            sunday: { selected: false, time: '', duration: '1', subject: '' },
+          }
+        }
+      ]
+    });
+    setShowAssignModal(true);
+  };
+
+  const addWeek = () => {
+    const lastWeek = assignmentData.weeks[assignmentData.weeks.length - 1];
+    const newWeekStart = new Date(lastWeek.weekStartDate);
+    newWeekStart.setDate(newWeekStart.getDate() + 7);
+    
+    const newWeekEnd = new Date(newWeekStart);
+    newWeekEnd.setDate(newWeekEnd.getDate() + 6);
+    newWeekEnd.setHours(23, 59, 59, 999);
+    
+    setAssignmentData({
+      ...assignmentData,
+      weeks: [
+        ...assignmentData.weeks,
+        {
+          id: Date.now(),
+          weekStartDate: newWeekStart,
+          weekEndDate: newWeekEnd,
+          schedule: {
+            monday: { selected: false, time: '', duration: '1', subject: '' },
+            tuesday: { selected: false, time: '', duration: '1', subject: '' },
+            wednesday: { selected: false, time: '', duration: '1', subject: '' },
+            thursday: { selected: false, time: '', duration: '1', subject: '' },
+            friday: { selected: false, time: '', duration: '1', subject: '' },
+            saturday: { selected: false, time: '', duration: '1', subject: '' },
+            sunday: { selected: false, time: '', duration: '1', subject: '' },
+          }
+        }
+      ]
+    });
+  };
+
+  const removeWeek = (weekIndex) => {
+    if (assignmentData.weeks.length > 1) {
+      setAssignmentData({
+        ...assignmentData,
+        weeks: assignmentData.weeks.filter((_, index) => index !== weekIndex)
+      });
+    }
+  };
+
+  const handleDayToggle = (weekIndex, day) => {
+    const newWeeks = [...assignmentData.weeks];
+    newWeeks[weekIndex].schedule[day].selected = !newWeeks[weekIndex].schedule[day].selected;
+    setAssignmentData({
+      ...assignmentData,
+      weeks: newWeeks
+    });
+  };
+
+  const handleScheduleChange = (weekIndex, day, field, value) => {
+    const newWeeks = [...assignmentData.weeks];
+    newWeeks[weekIndex].schedule[day][field] = value;
+    setAssignmentData({
+      ...assignmentData,
+      weeks: newWeeks
+    });
+  };
+
+  const handleSubmitAssignment = async (e) => {
+    e.preventDefault();
+    
+    if (!assignmentData.teacherId) {
+      toast.error('Please select a teacher');
       return;
     }
 
-    const teacherOptions = activeTeachers.map((t, idx) => `${idx + 1}. ${t.name} - ${t.subject}`).join('\n');
-    const selection = prompt(`Select a teacher by number:\n${teacherOptions}`);
+    // Check if at least one day is selected across all weeks
+    const hasSelectedDay = assignmentData.weeks.some(week =>
+      Object.values(week.schedule).some(day => day.selected)
+    );
     
-    if (selection === null) return;
-    
-    const selectedIndex = parseInt(selection) - 1;
-    if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= activeTeachers.length) {
-      toast.error('Invalid selection');
+    if (!hasSelectedDay) {
+      toast.error('Please select at least one day in the weekly schedule');
       return;
     }
 
-    const selectedTeacher = activeTeachers[selectedIndex];
-    
     setLoading(true);
     try {
-      await studentService.assignTeacher(studentId, selectedTeacher._id);
-      toast.success(`Successfully assigned ${selectedTeacher.name} to the student`);
+      // Build combined weekly schedule from all weeks
+      const combinedSchedule = {};
+      assignmentData.weeks.forEach(week => {
+        Object.entries(week.schedule).forEach(([day, schedule]) => {
+          if (schedule.selected) {
+            if (!combinedSchedule[day]) {
+              combinedSchedule[day] = schedule;
+            }
+          }
+        });
+      });
+
+      await studentService.assignTeacher(
+        selectedStudentForAssignment._id, 
+        assignmentData.teacherId,
+        combinedSchedule
+      );
+      
+      const teacher = teachersData.find(t => t._id === assignmentData.teacherId);
+      toast.success(`Successfully assigned ${teacher.name} to ${selectedStudentForAssignment.studentName}`);
+      setShowAssignModal(false);
+      setSelectedStudentForAssignment(null);
       await fetchData();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to assign teacher');
@@ -256,6 +428,23 @@ const Students = ({ searchQuery = '' }) => {
     }
   };
 
+  const handleRemoveDuplicates = async () => {
+    if (!window.confirm('This will remove duplicate students (same name and parent). The oldest record will be kept. Continue?')) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await studentService.removeDuplicates();
+      toast.success(`Successfully removed ${response.removedCount} duplicate student(s)`);
+      await fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to remove duplicates');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Count students by status
   const allCount = studentsData.length;
   const activeCount = studentsData.filter(s => s.status === 'active').length;
@@ -270,6 +459,9 @@ const Students = ({ searchQuery = '' }) => {
           <p className="page-subtitle">Manage and monitor all students</p>
         </div>
         <div className="page-actions">
+          <button className="btn-secondary" onClick={handleRemoveDuplicates}>
+            <i className="fas fa-broom"></i> Clean Duplicates
+          </button>
           <button className="btn-primary" onClick={() => setShowAddForm(true)}>
             <i className="fas fa-plus"></i> Add Student
           </button>
@@ -382,6 +574,147 @@ const Students = ({ searchQuery = '' }) => {
                 </button>
                 <button type="submit" className="btn-primary">
                   Add Student
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Assign Teacher Modal */}
+      {showAssignModal && selectedStudentForAssignment && (
+        <div className="modal-overlay" onClick={() => setShowAssignModal(false)}>
+          <div className="modal-content assign-teacher-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Session Schedule</h3>
+              <button className="btn-close" onClick={() => setShowAssignModal(false)}>
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            <form onSubmit={handleSubmitAssignment}>
+              <div className="form-content">
+                <div className="form-section">
+                  
+                  <div className="form-group">
+                    <label>Select Teacher *</label>
+                    <select
+                      value={assignmentData.teacherId}
+                      onChange={(e) => setAssignmentData({...assignmentData, teacherId: e.target.value})}
+                      required
+                    >
+                      <option value="">Choose a teacher</option>
+                      {getActiveTeachers().map(teacher => (
+                        <option key={teacher._id} value={teacher._id}>
+                          {teacher.name} - {teacher.majorSubject || teacher.subject}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="subjectFocus">
+                      <i className="fas fa-book icon-label"></i> Subject Focus *
+                    </label>
+                    <input
+                      id="subjectFocus"
+                      type="text"
+                      value={assignmentData.subjectFocus}
+                      onChange={(e) => setAssignmentData({...assignmentData, subjectFocus: e.target.value})}
+                      required
+                      placeholder="e.g., Math and Science, English Literature, etc."
+                    />
+                    <p className="form-help">Primary subjects that will be covered in the tutoring sessions</p>
+                  </div>
+
+                  <div className="form-divider"></div>
+
+                  <div className="form-group full-width">
+                    <div className="schedule-header">
+                      <label className="schedule-label">
+                        <i className="fas fa-calendar-week icon-label"></i> Weekly Schedules *
+                      </label>
+                      <button 
+                        type="button" 
+                        className="btn-add-week"
+                        onClick={addWeek}
+                      >
+                        <i className="fas fa-plus"></i> Add Next Week
+                      </button>
+                    </div>
+                    <p className="form-help">Each week is a separate booking. Click "Add Next Week" to schedule additional weeks.</p>
+                    
+                    {assignmentData.weeks.map((week, weekIndex) => (
+                      <div key={week.id} className="week-block">
+                        <div className="week-block-header">
+                          <h4>
+                            <i className="fas fa-calendar-alt"></i> 
+                            Week {weekIndex + 1}: {week.weekStartDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - {week.weekEndDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </h4>
+                          {assignmentData.weeks.length > 1 && (
+                            <button
+                              type="button"
+                              className="btn-remove-week"
+                              onClick={() => removeWeek(weekIndex)}
+                              title="Remove this week"
+                            >
+                              <i className="fas fa-trash"></i>
+                            </button>
+                          )}
+                        </div>
+                        
+                        <div className="weekly-schedule">
+                          {Object.entries(week.schedule).map(([day, schedule]) => (
+                            <div key={day} className={`day-schedule ${schedule.selected ? 'selected' : ''}`}>
+                              <div className="day-header">
+                                <label className="checkbox-label">
+                                  <input
+                                    type="checkbox"
+                                    checked={schedule.selected}
+                                    onChange={() => handleDayToggle(weekIndex, day)}
+                                  />
+                                  <span className="day-name">{day.charAt(0).toUpperCase() + day.slice(1)}</span>
+                                </label>
+                              </div>
+                              {schedule.selected && (
+                                <div className="day-details">
+                                  <div className="detail-field">
+                                    <label>Time</label>
+                                    <input
+                                      type="time"
+                                      value={schedule.time}
+                                      onChange={(e) => handleScheduleChange(weekIndex, day, 'time', e.target.value)}
+                                      required
+                                    />
+                                  </div>
+                                  <div className="detail-field">
+                                    <label>Duration</label>
+                                    <select
+                                      value={schedule.duration}
+                                      onChange={(e) => handleScheduleChange(weekIndex, day, 'duration', e.target.value)}
+                                    >
+                                      <option value="0.5">30 mins</option>
+                                      <option value="1">1 hour</option>
+                                      <option value="1.5">1.5 hours</option>
+                                      <option value="2">2 hours</option>
+                                    </select>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="modal-actions">
+                <button type="button" className="btn-secondary" onClick={() => setShowAssignModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary">
+                  Assign Teacher
                 </button>
               </div>
             </form>

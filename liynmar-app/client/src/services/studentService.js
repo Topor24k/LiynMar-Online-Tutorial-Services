@@ -49,8 +49,12 @@ export const permanentDeleteStudent = async (id) => {
 };
 
 // Assign teacher to student
-export const assignTeacher = async (studentId, teacherId) => {
-  const response = await api.patch(`/students/${studentId}/assign-teacher`, { teacherId });
+export const assignTeacher = async (studentId, teacherId, weeklySchedule = null) => {
+  const payload = { teacherId };
+  if (weeklySchedule) {
+    payload.weeklySchedule = weeklySchedule;
+  }
+  const response = await api.patch(`/students/${studentId}/assign-teacher`, payload);
   return response.data;
 };
 

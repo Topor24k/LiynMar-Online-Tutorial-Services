@@ -129,7 +129,8 @@ export const createBooking = async (req, res) => {
       additionalNote,
       weeklySchedule,
       totalEarningsPerWeek,
-      weekStartDate
+      weekStartDate,
+      skipStudentCreation
     } = req.body;
 
     // Validate required fields
@@ -202,31 +203,35 @@ export const createBooking = async (req, res) => {
       status: 'active'
     });
 
-    // Update or create student record
-    let student = await Student.findOne({ 
-      studentName: studentName,
-      parentFbName: parentFbName,
-      isDeleted: false 
-    });
-
-    if (!student) {
-      // Create new student
-      student = await Student.create({
-        parentFbName,
-        studentName,
-        gradeLevel,
-        assignedTeacherForTheWeek: teacherId,
-        contactNumber,
-        facebookProfileLink,
-        status: 'active'
+    // Update or create student record (prevent duplicates)
+    // Only handle student creation if skipStudentCreation is not true
+    if (!skipStudentCreation) {
+      let student = await Student.findOne({ 
+        studentName: { $regex: new RegExp(`^${studentName}$`, 'i') },
+        parentFbName: { $regex: new RegExp(`^${parentFbName}$`, 'i') },
+        isDeleted: false 
       });
-    } else {
-      // Update student with current week's teacher
-      student.assignedTeacherForTheWeek = teacherId;
-      student.gradeLevel = gradeLevel;
-      student.contactNumber = contactNumber || student.contactNumber;
-      student.facebookProfileLink = facebookProfileLink || student.facebookProfileLink;
-      await student.save();
+
+      if (!student) {
+        // Create new student only if not found
+        student = await Student.create({
+          parentFbName,
+          studentName,
+          gradeLevel,
+          assignedTeacherForTheWeek: teacherId,
+          contactNumber,
+          facebookProfileLink,
+          status: 'active'
+        });
+      } else {
+        // Update existing student with current week's teacher and latest info
+        student.assignedTeacherForTheWeek = teacherId;
+        student.gradeLevel = gradeLevel;
+        student.contactNumber = contactNumber || student.contactNumber;
+        student.facebookProfileLink = facebookProfileLink || student.facebookProfileLink;
+        student.status = 'active'; // Ensure student is active
+        await student.save();
+      }
     }
 
     // Update teacher's total bookings
