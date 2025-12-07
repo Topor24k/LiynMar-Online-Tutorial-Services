@@ -58,8 +58,10 @@ MONGODB_URI=mongodb://localhost:27017/liynmar_tutorial
 
 If using MongoDB Atlas (cloud), use:
 ```env
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/liynmar_tutorial
+MONGODB_URI=mongodb+srv://<username>:<password>@<cluster-url>.mongodb.net/<database-name>
 ```
+
+**Note:** Replace `<username>`, `<password>`, `<cluster-url>`, and `<database-name>` with your actual MongoDB Atlas credentials from your .env file.
 
 3. Change JWT secret to something secure:
 ```env

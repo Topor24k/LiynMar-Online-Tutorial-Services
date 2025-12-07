@@ -43,11 +43,13 @@
 
 ### Step 6: Update Your .env File
 1. Open `server\.env`
-2. Replace `<password>` with your actual password
-3. Add database name before the `?`:
+2. Replace placeholders with your actual credentials from MongoDB Atlas
+3. Update the connection string:
    ```env
-   MONGODB_URI=mongodb+srv://liynmar_admin:YOUR_PASSWORD@cluster0.xxxxx.mongodb.net/liynmar_tutorial?retryWrites=true&w=majority
+   MONGODB_URI=mongodb+srv://<username>:<password>@<cluster-url>.mongodb.net/<database-name>?retryWrites=true&w=majority
    ```
+   
+   **Example format only - do not commit actual credentials!**
 
 ### Step 7: Restart Server
 The server will automatically restart with nodemon and connect to MongoDB Atlas.
