@@ -146,6 +146,18 @@ export const createBooking = async (req, res) => {
     const endDate = new Date(startDate);
     endDate.setDate(endDate.getDate() + 6);
 
+    // Prevent booking past dates - only allow current week or future weeks
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    startDate.setHours(0, 0, 0, 0);
+    
+    if (startDate < today) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Cannot create bookings for past dates. Please select current week or future dates.'
+      });
+    }
+
     // Rate calculation based on duration
     const getRateForDuration = (duration) => {
       const rates = {

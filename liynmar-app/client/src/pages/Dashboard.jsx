@@ -48,103 +48,230 @@ const Dashboard = () => {
   };
 
   // Calculate shares based on duration
-  const calculateShares = (duration, totalRate) => {
-    const durationStr = duration.toLowerCase();
-    let hours = 0;
+  const calculateShares = (duration) => {
+    const shareMap = {
+      0.5: { teacher: 50, company: 13 },   // 30 mins
+      1: { teacher: 100, company: 25 },    // 1 hour
+      1.5: { teacher: 150, company: 38 },  // 1.5 hours
+      2: { teacher: 200, company: 50 }     // 2 hours
+    };
     
-    if (durationStr.includes('30 min')) {
-      hours = 0.5;
-    } else if (durationStr.includes('1.5 hour')) {
-      hours = 1.5;
-    } else if (durationStr.includes('2 hour')) {
-      hours = 2;
-    } else if (durationStr.includes('1 hour')) {
-      hours = 1;
-    } else {
-      const match = durationStr.match(/([\d.]+)/);
-      hours = match ? parseFloat(match[1]) : 0;
-    }
-    
-    const fullHours = Math.floor(hours);
-    const remaining = hours - fullHours;
-    const teacherShare = (fullHours * 100) + (remaining >= 0.5 ? 50 : 0);
-    const companyShare = totalRate - teacherShare;
-    
-    return { teacherShare, companyShare };
+    const shares = shareMap[duration] || { teacher: 100, company: 25 };
+    return { teacherShare: shares.teacher, companyShare: shares.company };
   };
 
-  // Calculate metrics based on real data
+  // Get rate for duration
+  const getRateForDuration = (duration) => {
+    const rates = {
+      0.5: 63,   // 30 mins
+      1: 125,    // 1 hour
+      1.5: 188,  // 1.5 hours
+      2: 250     // 2 hours
+    };
+    return rates[duration] || 125;
+  };
+
+  // Calculate metrics based on real session data
   const getMetrics = () => {
     const totalTeachers = dashboardData.teachers.length;
     const activeTeachers = dashboardData.teachers.filter(t => t.status === 'active').length;
     
-    // Count students
-    const bookedStudents = dashboardData.students.length;
+    // Count unique students from bookings
+    const uniqueStudents = new Set();
+    dashboardData.bookings.forEach(booking => {
+      if (booking.studentName) {
+        uniqueStudents.add(`${booking.studentName}-${booking.parentFbName}`);
+      }
+    });
 
-    // Calculate sessions and revenue
-    const sessions = dashboardData.bookings.length;
+    // Calculate total sessions and revenue from sessionStatus
+    let totalSessions = 0;
+    let completedSessions = 0;
     let revenue = 0;
+    let teacherRevenue = 0;
     
     dashboardData.bookings.forEach(booking => {
-      if (booking.status === 'completed' || booking.status === 'active') {
-        revenue += booking.totalEarningsPerWeek || 0;
-      }
+      if (!booking.sessionStatus || !booking.weeklySchedule) return;
+      
+      const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+      
+      days.forEach(day => {
+        const sessionStatus = booking.sessionStatus[day];
+        const daySchedule = booking.weeklySchedule[day];
+        
+        // Check if this day is scheduled
+        if (daySchedule && daySchedule.isScheduled) {
+          const status = sessionStatus?.status || 'N';
+          const duration = daySchedule.duration || 1;
+          const rate = getRateForDuration(duration);
+          const shares = calculateShares(duration);
+          
+          // Count all scheduled sessions
+          if (status !== 'N') {
+            totalSessions++;
+          }
+          
+          // Count completed and paid sessions for revenue (C = Completed, A = Advance Paid)
+          if (status === 'C' || status === 'A') {
+            completedSessions++;
+            revenue += shares.companyShare;
+            teacherRevenue += shares.teacherShare;
+          }
+        }
+      });
     });
 
     return {
       totalTeachers: activeTeachers,
-      bookedStudents,
-      sessions,
+      bookedStudents: uniqueStudents.size,
+      sessions: totalSessions,
+      completedSessions,
       revenue: Math.round(revenue),
+      teacherRevenue: Math.round(teacherRevenue),
       revenueChange: 0 // Can't calculate without historical data
     };
   };
 
   const metrics = getMetrics();
 
-  // Revenue Graph Data - Using real booking data
+  // Revenue Graph Data - Using real session data
   const revenueData = useMemo(() => {
     if (timePeriod === 'week') {
       const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
       const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      
       const values = days.map(day => {
-        // Sum earnings for bookings that have this day scheduled
-        return dashboardData.bookings
-          .filter(b => b.weeklySchedule && b.weeklySchedule[day])
-          .reduce((sum, b) => sum + (b.totalEarningsPerWeek || 0) / 7, 0); // Divide weekly by 7 for daily
+        let dayRevenue = 0;
+        
+        dashboardData.bookings.forEach(booking => {
+          if (!booking.sessionStatus || !booking.weeklySchedule) return;
+          
+          const sessionStatus = booking.sessionStatus[day];
+          const daySchedule = booking.weeklySchedule[day];
+          
+          if (daySchedule && daySchedule.isScheduled) {
+            const status = sessionStatus?.status || 'N';
+            const duration = daySchedule.duration || 1;
+            
+            // Only count paid/completed sessions (C = Completed, A = Advance Paid)
+            if (status === 'C' || status === 'A') {
+              const shares = calculateShares(duration);
+              dayRevenue += shares.companyShare;
+            }
+          }
+        });
+        
+        return dayRevenue;
       });
+      
       return { labels, values };
     } else if (timePeriod === 'month') {
-      // Calculate weekly totals
-      const weeklyTotal = dashboardData.bookings.reduce((sum, b) => 
-        sum + (b.totalEarningsPerWeek || 0), 0
-      );
+      // Calculate weekly totals for 4 weeks
+      const weekLabels = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
+      const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+      
+      // Calculate weekly revenue
+      let weeklyRevenue = 0;
+      dashboardData.bookings.forEach(booking => {
+        if (!booking.sessionStatus || !booking.weeklySchedule) return;
+        
+        days.forEach(day => {
+          const sessionStatus = booking.sessionStatus[day];
+          const daySchedule = booking.weeklySchedule[day];
+          
+          if (daySchedule && daySchedule.isScheduled) {
+            const status = sessionStatus?.status || 'N';
+            const duration = daySchedule.duration || 1;
+            
+            if (status === 'C' || status === 'A') {
+              const shares = calculateShares(duration);
+              weeklyRevenue += shares.companyShare;
+            }
+          }
+        });
+      });
+      
+      // Replicate for 4 weeks (in reality, you'd query by date ranges)
       return {
-        labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-        values: [weeklyTotal, weeklyTotal, weeklyTotal, weeklyTotal]
+        labels: weekLabels,
+        values: [weeklyRevenue, weeklyRevenue, weeklyRevenue, weeklyRevenue]
       };
     } else {
-      // Calculate monthly totals (weekly * 4)
-      const monthlyTotal = dashboardData.bookings.reduce((sum, b) => 
-        sum + (b.totalEarningsPerWeek || 0), 0
-      ) * 4;
+      // Calculate monthly totals for year
+      const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+      
+      // Calculate weekly revenue then multiply by 4 for monthly
+      let weeklyRevenue = 0;
+      dashboardData.bookings.forEach(booking => {
+        if (!booking.sessionStatus || !booking.weeklySchedule) return;
+        
+        days.forEach(day => {
+          const sessionStatus = booking.sessionStatus[day];
+          const daySchedule = booking.weeklySchedule[day];
+          
+          if (daySchedule && daySchedule.isScheduled) {
+            const status = sessionStatus?.status || 'N';
+            const duration = daySchedule.duration || 1;
+            
+            if (status === 'C' || status === 'A') {
+              const shares = calculateShares(duration);
+              weeklyRevenue += shares.companyShare;
+            }
+          }
+        });
+      });
+      
+      const monthlyRevenue = weeklyRevenue * 4; // 4 weeks per month
+      
       return {
         labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-        values: Array(12).fill(monthlyTotal)
+        values: Array(12).fill(monthlyRevenue)
       };
     }
   }, [timePeriod, dashboardData.bookings]);
 
-  // Session Status Data - Using real booking data
+  // Session Status Data - Using real session status from bookings
   const sessionData = useMemo(() => {
-    const activeBookings = dashboardData.bookings.filter(b => b.status === 'active').length;
-    const completedBookings = dashboardData.bookings.filter(b => b.status === 'completed').length;
-    const pendingBookings = dashboardData.bookings.filter(b => b.status === 'pending').length;
+    let completed = 0;      // C
+    let advancePaid = 0;    // A
+    let pending = 0;        // P
+    let teacherAbsent = 0;  // T
+    let studentAbsent = 0;  // S
+    let teacherSubstitute = 0; // AT
+    let studentSubstitute = 0; // AS
+    
+    dashboardData.bookings.forEach(booking => {
+      if (!booking.sessionStatus || !booking.weeklySchedule) return;
+      
+      const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+      
+      days.forEach(day => {
+        const sessionStatus = booking.sessionStatus[day];
+        const daySchedule = booking.weeklySchedule[day];
+        
+        // Only count scheduled sessions
+        if (daySchedule && daySchedule.isScheduled) {
+          const status = sessionStatus?.status || 'N';
+          
+          switch(status) {
+            case 'C': completed++; break;
+            case 'A': advancePaid++; break;
+            case 'P': pending++; break;
+            case 'T': teacherAbsent++; break;
+            case 'S': studentAbsent++; break;
+            case 'AT': teacherSubstitute++; break;
+            case 'AS': studentSubstitute++; break;
+          }
+        }
+      });
+    });
     
     return { 
-      completed: completedBookings, 
-      studentAbsent: pendingBookings, // Using pending as a proxy
-      teacherAbsent: 0 
+      completed,
+      advancePaid,
+      pending,
+      studentAbsent: studentAbsent + studentSubstitute,
+      teacherAbsent: teacherAbsent + teacherSubstitute
     };
   }, [dashboardData.bookings]);
 
@@ -163,11 +290,11 @@ const Dashboard = () => {
       .slice(0, 5);
   }, [dashboardData.bookings]);
 
-  // Top 10 Teachers - Using real booking and earnings data
+  // Top 10 Teachers - Using real session-based earnings data
   const topTeachers = useMemo(() => {
     const teacherStats = {};
 
-    // Calculate bookings and earnings per teacher
+    // Calculate bookings and earnings per teacher from actual sessions
     dashboardData.bookings.forEach(booking => {
       const teacherId = booking.teacherId?._id || booking.teacherId;
       const teacher = dashboardData.teachers.find(t => t._id === teacherId);
@@ -178,20 +305,39 @@ const Dashboard = () => {
           name: teacher.name,
           subject: teacher.majorSubject || teacher.subject,
           bookings: 0,
+          sessions: 0,
           earnings: 0
         };
       }
 
+      // Count this booking
       teacherStats[teacherId].bookings += 1;
       
-      // Calculate earnings from weekly schedule
-      if (booking.status === 'active' || booking.status === 'completed') {
-        teacherStats[teacherId].earnings += booking.totalEarningsPerWeek || 0;
+      // Calculate earnings from individual sessions
+      if (booking.sessionStatus && booking.weeklySchedule) {
+        const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+        
+        days.forEach(day => {
+          const sessionStatus = booking.sessionStatus[day];
+          const daySchedule = booking.weeklySchedule[day];
+          
+          if (daySchedule && daySchedule.isScheduled) {
+            const status = sessionStatus?.status || 'N';
+            const duration = daySchedule.duration || 1;
+            
+            // Count completed or advance paid sessions
+            if (status === 'C' || status === 'A') {
+              teacherStats[teacherId].sessions += 1;
+              const shares = calculateShares(duration);
+              teacherStats[teacherId].earnings += shares.teacherShare;
+            }
+          }
+        });
       }
     });
 
     return Object.values(teacherStats)
-      .sort((a, b) => b.bookings - a.bookings)
+      .sort((a, b) => b.sessions - a.sessions) // Sort by sessions completed
       .slice(0, 10)
       .map((teacher, index) => ({
         rank: index + 1,
@@ -202,7 +348,7 @@ const Dashboard = () => {
 
   const maxRevenue = revenueData.values.length > 0 ? Math.max(...revenueData.values) : 1;
   const maxSubject = subjectData.length > 0 ? Math.max(...subjectData.map(s => s.bookings)) : 1;
-  const totalSessions = sessionData.completed + sessionData.studentAbsent + sessionData.teacherAbsent;
+  const totalSessions = sessionData.completed + sessionData.advancePaid + sessionData.pending + sessionData.studentAbsent + sessionData.teacherAbsent;
 
   return (
     <div className="dashboard-page">
@@ -253,7 +399,7 @@ const Dashboard = () => {
           </div>
           <div className="stat-content">
             <h3 className="stat-value">{metrics.bookedStudents}</h3>
-            <p className="stat-label">Total Booked Students ({timePeriod})</p>
+            <p className="stat-label">Total Students</p>
             <span className="stat-change positive">Active learners</span>
           </div>
         </div>
@@ -264,8 +410,8 @@ const Dashboard = () => {
           </div>
           <div className="stat-content">
             <h3 className="stat-value">{metrics.sessions}</h3>
-            <p className="stat-label">Sessions This {timePeriod}</p>
-            <span className="stat-change neutral">Total sessions</span>
+            <p className="stat-label">Total Sessions</p>
+            <span className="stat-change success">{metrics.completedSessions} completed</span>
           </div>
         </div>
 
@@ -275,8 +421,8 @@ const Dashboard = () => {
           </div>
           <div className="stat-content">
             <h3 className="stat-value">₱{metrics.revenue.toLocaleString()}</h3>
-            <p className="stat-label">Revenue This {timePeriod}</p>
-            <span className="stat-change neutral">Company earnings</span>
+            <p className="stat-label">Company Revenue</p>
+            <span className="stat-change neutral">From completed sessions</span>
           </div>
         </div>
       </div>
@@ -337,16 +483,29 @@ const Dashboard = () => {
           <div className="card-body">
             <div className="donut-chart">
               <svg viewBox="0 0 200 200" className="donut-svg">
+                {/* Completed - Green */}
                 <circle cx="100" cy="100" r="80" fill="none" stroke="#7d9b76" strokeWidth="40" 
-                  strokeDasharray={`${(sessionData.completed / totalSessions) * 502} 502`} 
+                  strokeDasharray={`${totalSessions > 0 ? (sessionData.completed / totalSessions) * 502 : 0} 502`} 
                   transform="rotate(-90 100 100)" />
-                <circle cx="100" cy="100" r="80" fill="none" stroke="#e74c3c" strokeWidth="40" 
-                  strokeDasharray={`${(sessionData.studentAbsent / totalSessions) * 502} 502`} 
-                  strokeDashoffset={`-${(sessionData.completed / totalSessions) * 502}`}
+                {/* Advance Paid - Blue */}
+                <circle cx="100" cy="100" r="80" fill="none" stroke="#3498db" strokeWidth="40" 
+                  strokeDasharray={`${totalSessions > 0 ? (sessionData.advancePaid / totalSessions) * 502 : 0} 502`} 
+                  strokeDashoffset={`-${totalSessions > 0 ? (sessionData.completed / totalSessions) * 502 : 0}`}
                   transform="rotate(-90 100 100)" />
+                {/* Pending - Orange */}
                 <circle cx="100" cy="100" r="80" fill="none" stroke="#f39c12" strokeWidth="40" 
-                  strokeDasharray={`${(sessionData.teacherAbsent / totalSessions) * 502} 502`} 
-                  strokeDashoffset={`-${((sessionData.completed + sessionData.studentAbsent) / totalSessions) * 502}`}
+                  strokeDasharray={`${totalSessions > 0 ? (sessionData.pending / totalSessions) * 502 : 0} 502`} 
+                  strokeDashoffset={`-${totalSessions > 0 ? ((sessionData.completed + sessionData.advancePaid) / totalSessions) * 502 : 0}`}
+                  transform="rotate(-90 100 100)" />
+                {/* Student Absent - Red */}
+                <circle cx="100" cy="100" r="80" fill="none" stroke="#e74c3c" strokeWidth="40" 
+                  strokeDasharray={`${totalSessions > 0 ? (sessionData.studentAbsent / totalSessions) * 502 : 0} 502`} 
+                  strokeDashoffset={`-${totalSessions > 0 ? ((sessionData.completed + sessionData.advancePaid + sessionData.pending) / totalSessions) * 502 : 0}`}
+                  transform="rotate(-90 100 100)" />
+                {/* Teacher Absent - Yellow */}
+                <circle cx="100" cy="100" r="80" fill="none" stroke="#e67e22" strokeWidth="40" 
+                  strokeDasharray={`${totalSessions > 0 ? (sessionData.teacherAbsent / totalSessions) * 502 : 0} 502`} 
+                  strokeDashoffset={`-${totalSessions > 0 ? ((sessionData.completed + sessionData.advancePaid + sessionData.pending + sessionData.studentAbsent) / totalSessions) * 502 : 0}`}
                   transform="rotate(-90 100 100)" />
                 <text x="100" y="100" textAnchor="middle" dy="7" className="donut-center-text">{totalSessions}</text>
                 <text x="100" y="115" textAnchor="middle" dy="7" className="donut-center-label">Total</text>
@@ -358,11 +517,19 @@ const Dashboard = () => {
                 <span className="legend-label">Completed: {sessionData.completed}</span>
               </div>
               <div className="legend-item">
+                <span className="legend-dot" style={{ backgroundColor: '#3498db' }}></span>
+                <span className="legend-label">Advance Paid: {sessionData.advancePaid}</span>
+              </div>
+              <div className="legend-item">
+                <span className="legend-dot" style={{ backgroundColor: '#f39c12' }}></span>
+                <span className="legend-label">Pending: {sessionData.pending}</span>
+              </div>
+              <div className="legend-item">
                 <span className="legend-dot" style={{ backgroundColor: '#e74c3c' }}></span>
                 <span className="legend-label">Student Absent: {sessionData.studentAbsent}</span>
               </div>
               <div className="legend-item">
-                <span className="legend-dot" style={{ backgroundColor: '#f39c12' }}></span>
+                <span className="legend-dot" style={{ backgroundColor: '#e67e22' }}></span>
                 <span className="legend-label">Teacher Absent: {sessionData.teacherAbsent}</span>
               </div>
             </div>
@@ -438,7 +605,7 @@ const Dashboard = () => {
                     <div className="teacher-stats">
                       <div className="stat-item">
                         <i className="fas fa-calendar-check"></i>
-                        <span>{teacher.bookings} bookings</span>
+                        <span>{teacher.sessions} sessions</span>
                       </div>
                       <div className="stat-item earnings">
                         <i className="fas fa-peso-sign"></i>

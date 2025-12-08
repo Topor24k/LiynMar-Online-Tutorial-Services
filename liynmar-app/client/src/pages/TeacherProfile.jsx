@@ -163,11 +163,13 @@ const TeacherProfile = () => {
               // Get duration and calculate rate
               const duration = (daySchedule && typeof daySchedule === 'object') ? daySchedule.duration : 1;
               const rateMap = { 0.5: 63, 1: 125, 1.5: 188, 2: 250 };
+              const teacherShareMap = { 0.5: 50, 1: 100, 1.5: 150, 2: 200 };
               const fullRate = rateMap[duration] || 125;
+              const teacherShare = teacherShareMap[duration] || 100;
               
-              // Calculate teacher share (80%) only for 'C' (Completed & Paid) and 'A' (Advance Paid)
+              // Calculate teacher share only for 'C' (Completed & Paid) and 'A' (Advance Paid)
               if (statusCode === 'C' || statusCode === 'A') {
-                weekEarnings += fullRate * 0.8; // 80% goes to teacher, 20% to company
+                weekEarnings += teacherShare;
               }
               
               schedule.push({
@@ -245,11 +247,13 @@ const TeacherProfile = () => {
             
             const duration = (daySchedule && typeof daySchedule === 'object') ? daySchedule.duration : 1;
             const rateMap = { 0.5: 63, 1: 125, 1.5: 188, 2: 250 };
+            const teacherShareMap = { 0.5: 50, 1: 100, 1.5: 150, 2: 200 };
             const fullRate = rateMap[duration] || 125;
+            const teacherShare = teacherShareMap[duration] || 100;
             
-            // Calculate teacher share (80%) only for 'C' and 'A' statuses
+            // Calculate teacher share only for 'C' and 'A' statuses
             if (statusCode === 'C' || statusCode === 'A') {
-              weekEarnings += fullRate * 0.8; // 80% goes to teacher, 20% to company
+              weekEarnings += teacherShare;
             }
             
             schedule.push({
@@ -574,11 +578,17 @@ const TeacherProfile = () => {
     // duration is now a number (0.5, 1, 1.5, 2)
     const hours = typeof duration === 'number' ? duration : parseFloat(duration) || 1;
     
-    // Calculate teacher share based on rate map (80% of total)
-    const teacherShare = totalRate * 0.8;
-    const companyShare = totalRate * 0.2;
+    // Fixed teacher and company shares based on duration
+    const shareMap = {
+      0.5: { teacher: 50, company: 13 },   // 30 mins
+      1: { teacher: 100, company: 25 },    // 1 hour
+      1.5: { teacher: 150, company: 38 },  // 1.5 hours
+      2: { teacher: 200, company: 50 }     // 2 hours
+    };
     
-    return { teacherShare, companyShare };
+    const shares = shareMap[hours] || { teacher: 100, company: 25 }; // default to 1 hour
+    
+    return { teacherShare: shares.teacher, companyShare: shares.company };
   };
 
   const calculateSummary = () => {
@@ -996,7 +1006,7 @@ const TeacherProfile = () => {
                     <th className="day-col">Su</th>
                   </>
                 )}
-                <th>TOTAL EARNINGS</th>
+                <th>TEACHER SHARE</th>
               </tr>
             </thead>
             <tbody>

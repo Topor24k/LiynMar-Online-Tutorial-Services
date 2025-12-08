@@ -267,13 +267,19 @@ const Students = ({ searchQuery = '' }) => {
     const student = studentsData.find(s => s._id === studentId);
     if (!student) return;
 
-    // Get current week's Monday
+    // Get current week's Monday, but ensure it's not in the past
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
     const currentDay = today.getDay();
     const diffToMonday = currentDay === 0 ? 1 : 1 - currentDay;
     const monday = new Date(today);
     monday.setDate(today.getDate() + diffToMonday);
     monday.setHours(0, 0, 0, 0);
+    
+    // If Monday is in the past, move to next week's Monday
+    if (monday < today) {
+      monday.setDate(monday.getDate() + 7);
+    }
     
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
@@ -376,6 +382,21 @@ const Students = ({ searchQuery = '' }) => {
     
     if (!hasSelectedDay) {
       toast.error('Please select at least one day in the weekly schedule');
+      return;
+    }
+
+    // Validate that no week starts in the past
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const hasPastDates = assignmentData.weeks.some(week => {
+      const weekStart = new Date(week.weekStartDate);
+      weekStart.setHours(0, 0, 0, 0);
+      return weekStart < today;
+    });
+    
+    if (hasPastDates) {
+      toast.error('Cannot create assignments for past dates. Please remove weeks with past dates.');
       return;
     }
 
