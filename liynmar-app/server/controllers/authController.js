@@ -13,10 +13,10 @@ const generateToken = (id) => {
 // @access  Public
 export const register = async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    const { email, password, fullName, contactNumber, role } = req.body;
 
     // Check if user already exists
-    const userExists = await User.findOne({ $or: [{ email }, { username }] });
+    const userExists = await User.findOne({ email });
     
     if (userExists) {
       return res.status(400).json({
@@ -25,20 +25,31 @@ export const register = async (req, res) => {
       });
     }
 
-    // Create user
-    const user = await User.create({
-      username,
+    // Create user data
+    const userData = {
       email,
-      password
-    });
+      password,
+      fullName: fullName || email.split('@')[0],
+      contactNumber: contactNumber || 'N/A',
+      role: role || 'admin' // Default role
+    };
+
+    // If created by an admin, track it
+    if (req.user) {
+      userData.createdBy = req.user._id;
+    }
+
+    // Create user
+    const user = await User.create(userData);
 
     res.status(201).json({
       status: 'success',
       data: {
         user: {
           _id: user._id,
-          username: user.username,
           email: user.email,
+          fullName: user.fullName,
+          contactNumber: user.contactNumber,
           role: user.role
         },
         token: generateToken(user._id)
@@ -92,8 +103,9 @@ export const login = async (req, res) => {
       data: {
         user: {
           _id: user._id,
-          username: user.username,
           email: user.email,
+          fullName: user.fullName,
+          contactNumber: user.contactNumber,
           role: user.role
         },
         token: generateToken(user._id)
@@ -117,6 +129,65 @@ export const getProfile = async (req, res) => {
     res.status(200).json({
       status: 'success',
       data: user
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+};
+
+// @desc    Get all users (for checking)
+// @route   GET /api/auth/users
+// @access  Private (Admin only)
+export const getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find({ isDeleted: false }).select('-password');
+    
+    res.status(200).json({
+      status: 'success',
+      count: users.length,
+      data: users
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+};
+
+// @desc    Delete user (soft delete)
+// @route   DELETE /api/auth/users/:id
+// @access  Private (Admin only)
+export const deleteUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    
+    if (!user) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'User not found'
+      });
+    }
+
+    // Prevent admin from deleting themselves
+    if (user._id.toString() === req.user._id.toString()) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'You cannot delete your own account'
+      });
+    }
+
+    // Soft delete
+    user.isDeleted = true;
+    user.deletedAt = new Date();
+    await user.save();
+
+    res.status(200).json({
+      status: 'success',
+      message: 'User deleted successfully'
     });
   } catch (error) {
     res.status(500).json({

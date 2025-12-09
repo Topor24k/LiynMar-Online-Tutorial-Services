@@ -108,6 +108,28 @@
   border-left: 3px solid var(--color-primary);
 }
 
+/* Locked Nav Items */
+.nav-item.locked {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: auto;
+}
+
+.nav-item.locked:hover {
+  background-color: rgba(184, 107, 107, 0.05);
+  color: var(--color-error);
+}
+
+.lock-icon {
+  margin-left: auto;
+  font-size: var(--font-size-sm);
+  color: var(--color-error);
+}
+
+.sidebar.closed .lock-icon {
+  display: none;
+}
+
 .sidebar-footer {
   padding: var(--spacing-lg);
   border-top: 1px solid var(--color-border);

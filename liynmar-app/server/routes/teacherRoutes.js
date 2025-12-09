@@ -9,8 +9,13 @@ import {
   permanentDeleteTeacher,
   getDeletedTeachers
 } from '../controllers/teacherController.js';
+import { protect } from '../middleware/authMiddleware.js';
+import { requireTeacherManager } from '../middleware/roleMiddleware.js';
 
 const router = express.Router();
+
+// Protect all teacher routes - only admin and teacher_manager can access
+router.use(protect, requireTeacherManager);
 
 // Get all teachers (non-deleted)
 router.get('/', getAllTeachers);

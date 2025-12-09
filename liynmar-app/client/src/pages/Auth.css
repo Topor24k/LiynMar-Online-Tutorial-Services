@@ -141,10 +141,10 @@
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 2rem;
-  margin-top: 3rem;
+  gap: 2rem;
 }
 
-.stat-item {
+.hero-stat-item {
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -154,18 +154,18 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
-.stat-item i {
+.hero-stat-item i {
   font-size: 2.5rem;
   color: #8B7355;
 }
 
-.stat-item h3 {
+.hero-stat-item h3 {
   font-size: 1.125rem;
   color: #2C2416;
   margin-bottom: 0.25rem;
 }
 
-.stat-item p {
+.hero-stat-item p {
   font-size: 0.875rem;
   color: #6B6254;
 }
@@ -244,7 +244,7 @@
   margin: 0 auto;
 }
 
-.section-title {
+.auth-section-title {
   font-size: 2.5rem;
   font-weight: 700;
   color: #2C2416;
@@ -299,6 +299,18 @@
 .about-card p {
   color: #6B6254;
   line-height: 1.8;
+}
+
+.about-card ul {
+  text-align: left;
+  color: #6B6254;
+  line-height: 1.8;
+  margin: 1rem 0 0 0;
+  padding-left: 1.5rem;
+}
+
+.about-card li {
+  margin-bottom: 0.5rem;
 }
 
 .features-grid {

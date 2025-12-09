@@ -23,11 +23,25 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      const [teachersResponse, studentsResponse, bookingsResponse] = await Promise.all([
-        teacherService.getAllTeachers(),
-        studentService.getAllStudents(),
-        bookingService.getAllBookings()
-      ]);
+      // Fetch only the data the user has access to based on their role
+      const fetchPromises = [];
+      
+      // Teachers data - admin and teacher_manager can access
+      fetchPromises.push(
+        teacherService.getAllTeachers().catch(() => ({ data: [] }))
+      );
+      
+      // Students data - admin and booking_manager can access
+      fetchPromises.push(
+        studentService.getAllStudents().catch(() => ({ data: [] }))
+      );
+      
+      // Bookings data - admin and booking_manager can access
+      fetchPromises.push(
+        bookingService.getAllBookings().catch(() => ({ data: [] }))
+      );
+
+      const [teachersResponse, studentsResponse, bookingsResponse] = await Promise.all(fetchPromises);
 
       const teachers = teachersResponse.data || [];
       const students = studentsResponse.data || [];

@@ -2,12 +2,6 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 const userSchema = new mongoose.Schema({
-  username: {
-    type: String,
-    required: [true, 'Username is required'],
-    trim: true,
-    minlength: [3, 'Username must be at least 3 characters']
-  },
   email: {
     type: String,
     required: [true, 'Email is required'],
@@ -21,15 +15,21 @@ const userSchema = new mongoose.Schema({
     minlength: [6, 'Password must be at least 6 characters'],
     select: false
   },
+  fullName: {
+    type: String,
+    required: [true, 'Full name is required'],
+    trim: true
+  },
+  contactNumber: {
+    type: String,
+    required: [true, 'Contact number is required'],
+    trim: true
+  },
   role: {
     type: String,
     enum: ['admin', 'teacher_manager', 'booking_manager'],
     default: 'admin',
     required: true
-  },
-  fullName: {
-    type: String,
-    trim: true
   },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
@@ -52,7 +52,6 @@ const userSchema = new mongoose.Schema({
 });
 
 // Create indexes
-userSchema.index({ username: 1 }, { unique: true });
 userSchema.index({ email: 1 }, { unique: true });
 
 // Hash password before saving

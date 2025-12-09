@@ -12,8 +12,13 @@ import {
   unassignTeacher,
   removeDuplicates
 } from '../controllers/studentController.js';
+import { protect } from '../middleware/authMiddleware.js';
+import { requireBookingManager } from '../middleware/roleMiddleware.js';
 
 const router = express.Router();
+
+// Protect all student routes - only admin and booking_manager can access
+router.use(protect, requireBookingManager);
 
 // Get all students (non-deleted)
 router.get('/', getAllStudents);

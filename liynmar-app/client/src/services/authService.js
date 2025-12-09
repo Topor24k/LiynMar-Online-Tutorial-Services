@@ -57,6 +57,18 @@ export const getCurrentUser = () => {
   return user ? JSON.parse(user) : null;
 };
 
+// Get all users (admin only)
+export const getAllUsers = async () => {
+  const response = await api.get('/auth/users');
+  return response.data;
+};
+
+// Delete user (admin only)
+export const deleteUser = async (userId) => {
+  const response = await api.delete(`/auth/users/${userId}`);
+  return response.data;
+};
+
 export default {
   register,
   login,
@@ -64,5 +76,7 @@ export default {
   getProfile,
   isAuthenticated,
   getCurrentUser,
+  getAllUsers,
+  deleteUser,
   setAuthToken
 };

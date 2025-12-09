@@ -180,28 +180,28 @@ const Auth = ({ onLoginSuccess }) => {
               tracking, and organizing online tutoring sessions.
             </p>
             <div className="hero-stats">
-              <div className="stat-item">
+              <div className="hero-stat-item">
                 <i className="fas fa-users-cog"></i>
                 <div>
                   <h3>Teacher Management</h3>
                   <p>Manage tutor profiles and track performance</p>
                 </div>
               </div>
-              <div className="stat-item">
+              <div className="hero-stat-item">
                 <i className="fas fa-book-reader"></i>
                 <div>
                   <h3>Student Records</h3>
                   <p>Maintain comprehensive student information</p>
                 </div>
               </div>
-              <div className="stat-item">
+              <div className="hero-stat-item">
                 <i className="fas fa-calendar-week"></i>
                 <div>
                   <h3>Booking System</h3>
                   <p>Schedule and manage tutorial sessions</p>
                 </div>
               </div>
-              <div className="stat-item">
+              <div className="hero-stat-item">
                 <i className="fas fa-chart-bar"></i>
                 <div>
                   <h3>Analytics Dashboard</h3>
@@ -239,7 +239,7 @@ const Auth = ({ onLoginSuccess }) => {
       {/* About Section */}
       <section id="about" className="about-section">
         <div className="about-container">
-          <h2 className="section-title">About LiynMar</h2>
+          <h2 className="auth-section-title">About LiynMar</h2>
           <div className="about-content">
             <div className="about-card">
               <div className="card-icon">
@@ -247,8 +247,9 @@ const Auth = ({ onLoginSuccess }) => {
               </div>
               <h3>Our Mission</h3>
               <p>
-                To provide an efficient and user-friendly platform that connects students 
-                with qualified tutors, making quality education accessible and manageable.
+                To streamline the management of tutoring operations at Liynmar, providing employees 
+                with a secure, efficient, and user-friendly platform to manage bookings, track salaries, 
+                and monitor teacher-student interactions.
               </p>
             </div>
             <div className="about-card">
@@ -257,9 +258,14 @@ const Auth = ({ onLoginSuccess }) => {
               </div>
               <h3>What We Offer</h3>
               <p>
-                A comprehensive management system for online tutorials including teacher 
-                profiles, student records, booking management, and performance analytics.
+                A comprehensive administrative system that allows Liynmar employees to:
               </p>
+              <ul>
+                <li>Manage and track bookings between students and teachers.</li>
+                <li>Monitor teacher attendance and calculate weekly salaries accurately.</li>
+                <li>Prevent fraudulent receipts and ensure transparent, secure transactions.</li>
+                <li>Reduce time-consuming manual processes, enabling a seamless workflow.</li>
+              </ul>
             </div>
             <div className="about-card">
               <div className="card-icon">
@@ -267,8 +273,9 @@ const Auth = ({ onLoginSuccess }) => {
               </div>
               <h3>Admin Access</h3>
               <p>
-                This platform is designed for administrators and employees to manage 
-                tutoring operations efficiently. Access is restricted to authorized personnel only.
+                This platform is exclusively for Liynmar employees and administrators. Access is 
+                restricted to authorized personnel, ensuring operational security and efficient 
+                management of tutoring services.
               </p>
             </div>
           </div>
@@ -300,7 +307,7 @@ const Auth = ({ onLoginSuccess }) => {
       {/* Contact Section */}
       <section id="contact" className="contact-section">
         <div className="contact-container">
-          <h2 className="section-title">Get In Touch</h2>
+          <h2 className="auth-section-title">Get In Touch</h2>
           <p className="contact-subtitle">
             Have questions or need assistance? Reach out to us through any of these channels
           </p>

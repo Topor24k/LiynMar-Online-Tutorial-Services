@@ -18,20 +18,33 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     // Check if user is logged in on mount
     const token = localStorage.getItem('token');
-    if (token) {
-      // Set token in axios headers
-      authService.setAuthToken(token);
-      // You can add a verify token endpoint to get user info
-      setUser({ token }); // Placeholder - should fetch user data
+    const storedUser = localStorage.getItem('currentUser');
+    
+    if (token && storedUser) {
+      try {
+        // Set token in axios headers
+        authService.setAuthToken(token);
+        // Parse and set user data from localStorage
+        const userData = JSON.parse(storedUser);
+        setUser(userData);
+      } catch (error) {
+        console.error('Error loading user data:', error);
+        // Clear invalid data
+        localStorage.removeItem('token');
+        localStorage.removeItem('currentUser');
+      }
     }
     setLoading(false);
   }, []);
 
   const login = async (email, password) => {
     try {
-      const response = await authService.login(email, password);
-      setUser(response.user);
-      return { success: true };
+      const response = await authService.login({ email, password });
+      if (response.status === 'success') {
+        setUser(response.data.user);
+        return { success: true };
+      }
+      return { success: false, error: 'Login failed' };
     } catch (error) {
       return { success: false, error: error.response?.data?.message || 'Login failed' };
     }

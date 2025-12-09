@@ -9,8 +9,13 @@ import {
   getBookingStats,
   checkAllStatuses
 } from '../controllers/bookingController.js';
+import { protect } from '../middleware/authMiddleware.js';
+import { requireBookingManager } from '../middleware/roleMiddleware.js';
 
 const router = express.Router();
+
+// Protect all booking routes - only admin and booking_manager can access
+router.use(protect, requireBookingManager);
 
 // Get all bookings
 router.get('/', getAllBookings);

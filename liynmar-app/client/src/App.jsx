@@ -12,6 +12,7 @@ import TeacherProfile from './pages/TeacherProfile';
 import Students from './pages/Students';
 import Bookings from './pages/Bookings';
 import Analytics from './pages/Analytics';
+import Employees from './pages/Employees';
 import Auth from './pages/Auth';
 
 // Context
@@ -70,6 +71,7 @@ function App() {
               <Route path="/students" element={<Students searchQuery={searchQuery} />} />
               <Route path="/bookings" element={<Bookings searchQuery={searchQuery} />} />
               <Route path="/analytics" element={<Analytics searchQuery={searchQuery} />} />
+              <Route path="/employees" element={<Employees searchQuery={searchQuery} />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </div>
