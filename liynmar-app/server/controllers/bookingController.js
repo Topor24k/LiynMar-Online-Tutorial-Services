@@ -1,6 +1,7 @@
 import Booking from '../models/Booking.js';
 import Teacher from '../models/Teacher.js';
 import Student from '../models/Student.js';
+import { updateTeacherStatus, updateStudentStatus } from '../utils/statusManager.js';
 
 // @desc    Get all bookings
 // @route   GET /api/bookings
@@ -246,11 +247,29 @@ export const createBooking = async (req, res) => {
       }
     }
 
-    // Update teacher's total bookings
+    // Update teacher's total bookings and status
     await Teacher.findByIdAndUpdate(
       teacherId,
-      { $inc: { totalBookings: 1 } }
+      { 
+        $inc: { totalBookings: 1 },
+        status: 'active' // Activate teacher when they get a booking
+      }
     );
+
+    // Update teacher status based on current week bookings
+    await updateTeacherStatus(teacherId);
+
+    // If student was created/updated, update their status too
+    if (!skipStudentCreation) {
+      const student = await Student.findOne({ 
+        studentName: { $regex: new RegExp(`^${studentName}$`, 'i') },
+        parentFbName: { $regex: new RegExp(`^${parentFbName}$`, 'i') },
+        isDeleted: false 
+      });
+      if (student) {
+        await updateStudentStatus(student._id);
+      }
+    }
 
     // Populate teacher info before sending response
     await booking.populate('teacherId', 'name majorSubject email');
@@ -311,8 +330,10 @@ export const deleteBooking = async (req, res) => {
       });
     }
 
-    // Store teacherId before deletion
+    // Store info before deletion
     const teacherId = booking.teacherId;
+    const studentName = booking.studentName;
+    const parentFbName = booking.parentFbName;
 
     // Delete the booking
     await Booking.findByIdAndDelete(req.params.id);
@@ -323,9 +344,42 @@ export const deleteBooking = async (req, res) => {
       { $inc: { totalBookings: -1 } }
     );
 
+    // Update teacher and student statuses after deletion
+    await updateTeacherStatus(teacherId);
+    
+    const student = await Student.findOne({ 
+      studentName: { $regex: new RegExp(`^${studentName}$`, 'i') },
+      parentFbName: { $regex: new RegExp(`^${parentFbName}$`, 'i') },
+      isDeleted: false 
+    });
+    if (student) {
+      await updateStudentStatus(student._id);
+    }
+
     res.status(200).json({
       status: 'success',
       message: 'Booking deleted successfully'
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+};
+
+// @desc    Manually trigger status check for all teachers and students
+// @route   POST /api/bookings/check-status
+// @access  Public
+export const checkAllStatuses = async (req, res) => {
+  try {
+    const { runStatusCheck } = await import('../utils/statusManager.js');
+    const result = await runStatusCheck();
+    
+    res.status(200).json({
+      status: 'success',
+      message: 'Status check completed',
+      data: result
     });
   } catch (error) {
     res.status(500).json({

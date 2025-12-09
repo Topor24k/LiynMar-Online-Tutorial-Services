@@ -6,7 +6,8 @@ import {
   createBooking,
   updateBooking,
   deleteBooking,
-  getBookingStats
+  getBookingStats,
+  checkAllStatuses
 } from '../controllers/bookingController.js';
 
 const router = express.Router();
@@ -16,6 +17,9 @@ router.get('/', getAllBookings);
 
 // Get booking statistics
 router.get('/stats', getBookingStats);
+
+// Manual status check endpoint
+router.post('/check-status', checkAllStatuses);
 
 // Get bookings by teacher
 router.get('/teacher/:teacherId', getBookingsByTeacher);

@@ -47,6 +47,14 @@ const studentSchema = new mongoose.Schema({
     enum: ['active', 'inactive'],
     default: 'active'
   },
+  inactiveDays: {
+    type: Number,
+    default: 0
+  },
+  lastStatusChange: {
+    type: Date,
+    default: Date.now
+  },
   isDeleted: {
     type: Boolean,
     default: false

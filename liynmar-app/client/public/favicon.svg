@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4F46E5;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7C3AED;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="32" cy="32" r="30" fill="url(#grad)"/>
+  
+  <!-- Book icon -->
+  <path d="M 20 18 L 20 46 L 44 46 L 44 18 Z" fill="white" opacity="0.3"/>
+  <path d="M 22 20 L 22 44 L 42 44 L 42 20 Z" fill="white"/>
+  
+  <!-- Book pages -->
+  <line x1="32" y1="20" x2="32" y2="44" stroke="url(#grad)" stroke-width="1.5"/>
+  <line x1="26" y1="26" x2="29" y2="26" stroke="url(#grad)" stroke-width="1" stroke-linecap="round"/>
+  <line x1="26" y1="30" x2="29" y2="30" stroke="url(#grad)" stroke-width="1" stroke-linecap="round"/>
+  <line x1="26" y1="34" x2="29" y2="34" stroke="url(#grad)" stroke-width="1" stroke-linecap="round"/>
+  <line x1="35" y1="26" x2="38" y2="26" stroke="url(#grad)" stroke-width="1" stroke-linecap="round"/>
+  <line x1="35" y1="30" x2="38" y2="30" stroke="url(#grad)" stroke-width="1" stroke-linecap="round"/>
+  <line x1="35" y1="34" x2="38" y2="34" stroke="url(#grad)" stroke-width="1" stroke-linecap="round"/>
+  
+  <!-- Pencil/graduation cap accent -->
+  <circle cx="48" cy="16" r="8" fill="#FCD34D"/>
+  <path d="M 45 16 L 51 16 M 48 13 L 48 19" stroke="#1F2937" stroke-width="1.5" stroke-linecap="round"/>
+</svg>

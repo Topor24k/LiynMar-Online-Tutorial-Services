@@ -1,7 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import cron from 'node-cron';
 import connectDB from './config/database.js';
+import { runStatusCheck } from './utils/statusManager.js';
 
 // Import routes
 import teacherRoutes from './routes/teacherRoutes.js';
@@ -69,5 +71,34 @@ app.listen(PORT, () => {
   console.log(`📡 Environment: ${process.env.NODE_ENV}`);
   console.log(`🌐 Client URL: ${process.env.CLIENT_URL}`);
 });
+
+// Schedule automatic status checks
+// Run every Monday at 12:01 AM (start of the week)
+cron.schedule('1 0 * * 1', async () => {
+  console.log('🔄 Running weekly status check...');
+  try {
+    await runStatusCheck();
+  } catch (error) {
+    console.error('❌ Weekly status check failed:', error.message);
+  }
+}, {
+  timezone: 'Asia/Manila' // Adjust timezone as needed
+});
+
+// Also run status check daily at midnight to catch any edge cases
+cron.schedule('0 0 * * *', async () => {
+  console.log('🔄 Running daily status check...');
+  try {
+    await runStatusCheck();
+  } catch (error) {
+    console.error('❌ Daily status check failed:', error.message);
+  }
+}, {
+  timezone: 'Asia/Manila' // Adjust timezone as needed
+});
+
+console.log('⏰ Status check scheduler initialized');
+console.log('   - Weekly check: Every Monday at 12:01 AM');
+console.log('   - Daily check: Every day at midnight');
 
 export default app;

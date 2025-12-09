@@ -62,6 +62,14 @@ const teacherSchema = new mongoose.Schema({
     enum: ['active', 'inactive'],
     default: 'active'
   },
+  inactiveDays: {
+    type: Number,
+    default: 0
+  },
+  lastStatusChange: {
+    type: Date,
+    default: Date.now
+  },
   jobExperience: [jobExperienceSchema],
   isDeleted: {
     type: Boolean,
