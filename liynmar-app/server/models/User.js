@@ -23,12 +23,29 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['admin', 'user'],
-    default: 'admin'
+    enum: ['admin', 'teacher_manager', 'booking_manager'],
+    default: 'admin',
+    required: true
+  },
+  fullName: {
+    type: String,
+    trim: true
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
   },
   isActive: {
     type: Boolean,
     default: true
+  },
+  isDeleted: {
+    type: Boolean,
+    default: false
+  },
+  deletedAt: {
+    type: Date
   }
 }, {
   timestamps: true
