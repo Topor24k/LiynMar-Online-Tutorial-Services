@@ -148,6 +148,8 @@ const Auth = () => {
         <div className="nav-links">
           <a href="#home" className={activeSection === 'home' ? 'active' : ''} onClick={() => setActiveSection('home')}>Home</a>
           <a href="#about" className={activeSection === 'about' ? 'active' : ''} onClick={() => setActiveSection('about')}>About</a>
+          <a href="#services" className={activeSection === 'services' ? 'active' : ''} onClick={() => setActiveSection('services')}>Services</a>
+          <a href="#faq" className={activeSection === 'faq' ? 'active' : ''} onClick={() => setActiveSection('faq')}>FAQ</a>
           <a href="#contact" className={activeSection === 'contact' ? 'active' : ''} onClick={() => setActiveSection('contact')}>Contact</a>
           <button className="nav-signin-btn" onClick={() => setShowSignIn(true)}>
             <i className="fas fa-user-lock"></i> Admin Login
@@ -269,26 +271,98 @@ const Auth = () => {
               </p>
             </div>
           </div>
-          <div className="features-grid">
-            <div className="feature-item">
-              <i className="fas fa-users-cog"></i>
-              <h4>Teacher Management</h4>
-              <p>Manage tutor profiles and track performance</p>
+        </div>
+      </section>
+
+      {/* Tutorial Services Section */}
+      <section id="services" className="services-section">
+        <div className="services-container">
+          <h2 className="auth-section-title">Online Tutoring Services - One on One</h2>
+          <div className="services-grid">
+            <div className="service-card">
+              <div className="service-icon">
+                <i className="fas fa-user-graduate"></i>
+              </div>
+              <h3>Senior High School</h3>
+              <p className="service-description">Gen Math, Earth Science, Basic Calculus, General Chemistry, Assignment & Module Assistance, Exam Review, Research, and More</p>
             </div>
-            <div className="feature-item">
-              <i className="fas fa-book-reader"></i>
-              <h4>Student Records</h4>
-              <p>Maintain comprehensive student information</p>
+
+            <div className="service-card">
+              <div className="service-icon">
+                <i className="fas fa-school"></i>
+              </div>
+              <h3>Junior High School</h3>
+              <p className="service-description">Mathematics, Aral. Pan., Science, Filipino, English, MAPEH, Assignment & Module Assistance, Reading (English / Filipino), Exam Review, and More</p>
             </div>
-            <div className="feature-item">
-              <i className="fas fa-calendar-week"></i>
-              <h4>Booking System</h4>
-              <p>Schedule and manage tutorial sessions</p>
+
+            <div className="service-card">
+              <div className="service-icon">
+                <i className="fas fa-child"></i>
+              </div>
+              <h3>Elementary</h3>
+              <p className="service-description">Mathematics, Aral. Pan., Science, Filipino, English, MAPEH, Assignment & Module Assistance, Reading (English / Filipino), Exam Review, and More</p>
             </div>
-            <div className="feature-item">
-              <i className="fas fa-chart-bar"></i>
-              <h4>Analytics Dashboard</h4>
-              <p>Track metrics and generate insights</p>
+
+            <div className="service-card">
+              <div className="service-icon">
+                <i className="fas fa-baby"></i>
+              </div>
+              <h3>Nursery to Kindergarten</h3>
+              <p className="service-description">Mathematics, Literacy, Science, English, Filipino, and More</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section id="faq" className="faq-section">
+        <div className="faq-container">
+          <h2 className="auth-section-title">Frequently Asked Questions</h2>
+          <p className="faq-subtitle">Got questions? We've got answers</p>
+          <div className="faq-grid">
+            <div className="faq-item">
+              <div className="faq-icon">
+                <i className="fas fa-chart-line"></i>
+              </div>
+              <h3>How do I know if my child is improving?</h3>
+              <p>We provide regular updates, feedback, and progress checks to ensure steady growth.</p>
+              <span className="faq-badge">LiynMar</span>
+            </div>
+
+            <div className="faq-item">
+              <div className="faq-icon">
+                <i className="fas fa-brain"></i>
+              </div>
+              <h3>My child has a short attention span, will online work?</h3>
+              <p>Yes, sessions are designed to be interactive, engaging, and tailored to match your child's learning style.</p>
+              <span className="faq-badge">LiynMar</span>
+            </div>
+
+            <div className="faq-item">
+              <div className="faq-icon">
+                <i className="fas fa-calendar-alt"></i>
+              </div>
+              <h3>What if we have an unpredictable schedule?</h3>
+              <p>We offer flexible class times so you can choose what works best for your family.</p>
+              <span className="faq-badge">LiynMar</span>
+            </div>
+
+            <div className="faq-item">
+              <div className="faq-icon">
+                <i className="fas fa-laptop"></i>
+              </div>
+              <h3>Do I need special equipment?</h3>
+              <p>Just a stable internet connection, a device and a quiet learning space — we take care of the rest.</p>
+              <span className="faq-badge">LiynMar</span>
+            </div>
+
+            <div className="faq-item">
+              <div className="faq-icon">
+                <i className="fas fa-child"></i>
+              </div>
+              <h3>Is online learning effective for young kids?</h3>
+              <p>Absolutely. With guided activities and personalized lessons, young learners thrive and stay motivated.</p>
+              <span className="faq-badge">LiynMar</span>
             </div>
           </div>
         </div>
