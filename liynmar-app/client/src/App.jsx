@@ -89,7 +89,7 @@ const ProtectedRoutes = () => {
             <Route 
               path="/teachers/:id" 
               element={
-                <ProtectedRoute allowedRoles={['admin', 'teacher_manager']}>
+                <ProtectedRoute allowedRoles={['admin', 'teacher_manager', 'booking_manager']}>
                   <TeacherProfile />
                 </ProtectedRoute>
               } 
@@ -97,7 +97,7 @@ const ProtectedRoutes = () => {
             <Route 
               path="/students" 
               element={
-                <ProtectedRoute allowedRoles={['admin', 'booking_manager']}>
+                <ProtectedRoute allowedRoles={['admin', 'booking_manager', 'teacher_manager']}>
                   <Students searchQuery={searchQuery} />
                 </ProtectedRoute>
               } 
@@ -105,7 +105,7 @@ const ProtectedRoutes = () => {
             <Route 
               path="/bookings" 
               element={
-                <ProtectedRoute allowedRoles={['admin', 'booking_manager']}>
+                <ProtectedRoute allowedRoles={['admin', 'booking_manager', 'teacher_manager']}>
                   <Bookings searchQuery={searchQuery} />
                 </ProtectedRoute>
               } 

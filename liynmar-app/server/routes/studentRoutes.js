@@ -13,44 +13,47 @@ import {
   removeDuplicates
 } from '../controllers/studentController.js';
 import { protect } from '../middleware/authMiddleware.js';
-import { requireBookingManager } from '../middleware/roleMiddleware.js';
+import { requireBookingManager, requireTeacherManager, checkRole } from '../middleware/roleMiddleware.js';
 
 const router = express.Router();
 
-// Protect all student routes - only admin and booking_manager can access
-router.use(protect, requireBookingManager);
+// Allow both booking_manager and teacher_manager to view students
+const requireBookingOrTeacherManager = checkRole('admin', 'booking_manager', 'teacher_manager');
 
-// Get all students (non-deleted)
-router.get('/', getAllStudents);
+// Protect all student routes
+router.use(protect);
 
-// Get deleted students
-router.get('/deleted', getDeletedStudents);
+// Get all students (non-deleted) - both managers can view
+router.get('/', requireBookingOrTeacherManager, getAllStudents);
 
-// Remove duplicate students
-router.post('/remove-duplicates', removeDuplicates);
+// Get deleted students - both managers can view
+router.get('/deleted', requireBookingOrTeacherManager, getDeletedStudents);
 
-// Get single student by ID
-router.get('/:id', getStudentById);
+// Remove duplicate students - only booking_manager
+router.post('/remove-duplicates', requireBookingManager, removeDuplicates);
 
-// Create new student
-router.post('/', createStudent);
+// Get single student by ID - both managers can view
+router.get('/:id', requireBookingOrTeacherManager, getStudentById);
 
-// Update student
-router.put('/:id', updateStudent);
+// Create new student - only booking_manager
+router.post('/', requireBookingManager, createStudent);
 
-// Soft delete student
-router.delete('/:id', deleteStudent);
+// Update student - only booking_manager
+router.put('/:id', requireBookingManager, updateStudent);
 
-// Restore deleted student
-router.patch('/:id/restore', restoreStudent);
+// Soft delete student - only booking_manager
+router.delete('/:id', requireBookingManager, deleteStudent);
 
-// Permanent delete student
-router.delete('/:id/permanent', permanentDeleteStudent);
+// Restore deleted student - only booking_manager
+router.patch('/:id/restore', requireBookingManager, restoreStudent);
 
-// Assign teacher to student
-router.patch('/:id/assign-teacher', assignTeacher);
+// Permanent delete student - only booking_manager
+router.delete('/:id/permanent', requireBookingManager, permanentDeleteStudent);
 
-// Unassign teacher from student
-router.patch('/:id/unassign-teacher', unassignTeacher);
+// Assign teacher to student - only booking_manager
+router.patch('/:id/assign-teacher', requireBookingManager, assignTeacher);
+
+// Unassign teacher from student - only booking_manager
+router.patch('/:id/unassign-teacher', requireBookingManager, unassignTeacher);
 
 export default router;

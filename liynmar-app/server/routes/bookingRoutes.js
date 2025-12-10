@@ -10,35 +10,38 @@ import {
   checkAllStatuses
 } from '../controllers/bookingController.js';
 import { protect } from '../middleware/authMiddleware.js';
-import { requireBookingManager } from '../middleware/roleMiddleware.js';
+import { requireBookingManager, requireTeacherManager, checkRole } from '../middleware/roleMiddleware.js';
 
 const router = express.Router();
 
-// Protect all booking routes - only admin and booking_manager can access
-router.use(protect, requireBookingManager);
+// Allow both booking_manager and teacher_manager to view bookings
+const requireBookingOrTeacherManager = checkRole('admin', 'booking_manager', 'teacher_manager');
 
-// Get all bookings
-router.get('/', getAllBookings);
+// Protect all booking routes
+router.use(protect);
 
-// Get booking statistics
-router.get('/stats', getBookingStats);
+// Get all bookings - both managers can view
+router.get('/', requireBookingOrTeacherManager, getAllBookings);
 
-// Manual status check endpoint
-router.post('/check-status', checkAllStatuses);
+// Get booking statistics - both managers can view
+router.get('/stats', requireBookingOrTeacherManager, getBookingStats);
 
-// Get bookings by teacher
-router.get('/teacher/:teacherId', getBookingsByTeacher);
+// Manual status check endpoint - both managers can trigger
+router.post('/check-status', requireBookingOrTeacherManager, checkAllStatuses);
 
-// Get single booking by ID
-router.get('/:id', getBookingById);
+// Get bookings by teacher - both managers can view
+router.get('/teacher/:teacherId', requireBookingOrTeacherManager, getBookingsByTeacher);
 
-// Create new booking
-router.post('/', createBooking);
+// Get single booking by ID - both managers can view
+router.get('/:id', requireBookingOrTeacherManager, getBookingById);
 
-// Update booking
-router.put('/:id', updateBooking);
+// Create new booking - only booking_manager
+router.post('/', requireBookingManager, createBooking);
 
-// Delete booking
-router.delete('/:id', deleteBooking);
+// Update booking - only booking_manager
+router.put('/:id', requireBookingManager, updateBooking);
+
+// Delete booking - only booking_manager
+router.delete('/:id', requireBookingManager, deleteBooking);
 
 export default router;

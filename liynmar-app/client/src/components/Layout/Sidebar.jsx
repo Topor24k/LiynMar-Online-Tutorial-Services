@@ -18,19 +18,19 @@ const Sidebar = ({ isOpen, onToggle }) => {
       path: '/teachers', 
       icon: 'fa-chalkboard-teacher', 
       label: 'Teachers',
-      allowedRoles: ['admin', 'teacher_manager']
+      allowedRoles: ['admin', 'teacher_manager', 'booking_manager']
     },
     { 
       path: '/students', 
       icon: 'fa-user-graduate', 
       label: 'Students',
-      allowedRoles: ['admin', 'booking_manager']
+      allowedRoles: ['admin', 'booking_manager', 'teacher_manager']
     },
     { 
       path: '/bookings', 
       icon: 'fa-calendar-check', 
       label: 'Bookings',
-      allowedRoles: ['admin', 'booking_manager']
+      allowedRoles: ['admin', 'booking_manager', 'teacher_manager']
     },
     { 
       path: '/employees', 

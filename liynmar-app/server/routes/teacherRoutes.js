@@ -10,35 +10,38 @@ import {
   getDeletedTeachers
 } from '../controllers/teacherController.js';
 import { protect } from '../middleware/authMiddleware.js';
-import { requireTeacherManager } from '../middleware/roleMiddleware.js';
+import { requireTeacherManager, requireBookingManager, checkRole } from '../middleware/roleMiddleware.js';
 
 const router = express.Router();
 
-// Protect all teacher routes - only admin and teacher_manager can access
-router.use(protect, requireTeacherManager);
+// Allow both teacher_manager and booking_manager to view teachers
+const requireTeacherOrBookingManager = checkRole('admin', 'teacher_manager', 'booking_manager');
 
-// Get all teachers (non-deleted)
-router.get('/', getAllTeachers);
+// Protect all teacher routes
+router.use(protect);
 
-// Get deleted teachers
-router.get('/deleted', getDeletedTeachers);
+// Get all teachers (non-deleted) - both managers can view
+router.get('/', requireTeacherOrBookingManager, getAllTeachers);
 
-// Get single teacher by ID
-router.get('/:id', getTeacherById);
+// Get deleted teachers - both managers can view
+router.get('/deleted', requireTeacherOrBookingManager, getDeletedTeachers);
 
-// Create new teacher
-router.post('/', createTeacher);
+// Get single teacher by ID - both managers can view
+router.get('/:id', requireTeacherOrBookingManager, getTeacherById);
 
-// Update teacher
-router.put('/:id', updateTeacher);
+// Create new teacher - only teacher_manager
+router.post('/', requireTeacherManager, createTeacher);
 
-// Soft delete teacher
-router.delete('/:id', deleteTeacher);
+// Update teacher - only teacher_manager
+router.put('/:id', requireTeacherManager, updateTeacher);
 
-// Restore deleted teacher
-router.patch('/:id/restore', restoreTeacher);
+// Soft delete teacher - only teacher_manager
+router.delete('/:id', requireTeacherManager, deleteTeacher);
 
-// Permanent delete teacher
-router.delete('/:id/permanent', permanentDeleteTeacher);
+// Restore deleted teacher - only teacher_manager
+router.patch('/:id/restore', requireTeacherManager, restoreTeacher);
+
+// Permanent delete teacher - only teacher_manager
+router.delete('/:id/permanent', requireTeacherManager, permanentDeleteTeacher);
 
 export default router;
