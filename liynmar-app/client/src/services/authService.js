@@ -12,10 +12,11 @@ const setAuthToken = (token) => {
 // Register new user
 export const register = async (userData) => {
   const response = await api.post('/auth/register', userData);
-  if (response.data.status === 'success') {
+  // Don't auto-login when admin creates an employee
+  // Only set token if this is a self-registration
+  if (response.data.status === 'success' && !userData.role) {
     const token = response.data.data.token;
     localStorage.setItem('token', token);
-    localStorage.setItem('currentUser', JSON.stringify(response.data.data.user));
     setAuthToken(token);
   }
   return response.data;
@@ -26,8 +27,8 @@ export const login = async (credentials) => {
   const response = await api.post('/auth/login', credentials);
   if (response.data.status === 'success') {
     const token = response.data.data.token;
+    // Only store token, user data comes from server
     localStorage.setItem('token', token);
-    localStorage.setItem('currentUser', JSON.stringify(response.data.data.user));
     setAuthToken(token);
   }
   return response.data;
@@ -36,7 +37,6 @@ export const login = async (credentials) => {
 // Logout user
 export const logout = () => {
   localStorage.removeItem('token');
-  localStorage.removeItem('currentUser');
   setAuthToken(null);
 };
 
@@ -49,12 +49,6 @@ export const getProfile = async () => {
 // Check if user is authenticated
 export const isAuthenticated = () => {
   return !!localStorage.getItem('token');
-};
-
-// Get current user
-export const getCurrentUser = () => {
-  const user = localStorage.getItem('currentUser');
-  return user ? JSON.parse(user) : null;
 };
 
 // Get all users (admin only)
@@ -75,7 +69,6 @@ export default {
   logout,
   getProfile,
   isAuthenticated,
-  getCurrentUser,
   getAllUsers,
   deleteUser,
   setAuthToken

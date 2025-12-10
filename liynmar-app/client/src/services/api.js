@@ -31,7 +31,6 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       // Clear token and redirect to login
       localStorage.removeItem('token');
-      localStorage.removeItem('currentUser');
       window.location.href = '/auth';
     }
     return Promise.reject(error);

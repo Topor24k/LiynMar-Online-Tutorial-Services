@@ -1,103 +1,138 @@
-# ✅ API Migration Complete!
+# ✅ API Migration Complete with Role-Based Access Control!
 
 ## What Was Updated
 
-All React components have been migrated from localStorage to use the backend API:
+All React components have been migrated from localStorage to use the backend API with role-based security:
 
 ### ✅ Updated Components
 
-1. **Auth.jsx** - Login/Register now uses `authService`
-2. **Teachers.jsx** - Teacher CRUD operations use `teacherService`
-3. **Students.jsx** - Student CRUD operations use `studentService`
-4. **Bookings.jsx** - Booking management uses `bookingService`
-5. **Dashboard.jsx** - Dashboard metrics use API services
-6. **AuthContext.jsx** - Authentication context uses `authService`
+1. **Auth.jsx** - Login/Register with role assignment
+2. **Teachers.jsx** - Teacher CRUD with role protection
+3. **Students.jsx** - Student CRUD with role protection
+4. **Bookings.jsx** - Booking management with role protection
+5. **Dashboard.jsx** - Dashboard metrics (Admin only)
+6. **Employees.jsx** - Employee management (Admin only) **[NEW!]**
+7. **AuthContext.jsx** - Authentication with user role tracking
+8. **Sidebar.jsx** - Role-based navigation with visual locks **[NEW!]**
 
-### ✅ Features Implemented
+### ✅ Security Features Implemented
 
-- ✅ Async/await API calls
-- ✅ Loading states with spinners
-- ✅ Toast notifications for success/error messages
-- ✅ Error handling with user-friendly messages
-- ✅ JWT token authentication
-- ✅ Automatic token refresh in API headers
+- ✅ Role-based middleware on all protected routes
+- ✅ JWT token authentication with role data
+- ✅ Frontend visual access control
+- ✅ Backend route protection
+- ✅ User role validation on every request
+- ✅ Secure password hashing (bcrypt)
+
+### ✅ New Features
+
+- ✅ Employee Management System
+- ✅ Role Assignment (Admin, Teacher Manager, Booking Manager)
+- ✅ Visual lock indicators on restricted sections
+- ✅ Soft delete for users/employees
+- ✅ Admin-only employee CRUD operations
 
 ## Current Status
 
 ### ✅ Frontend (React)
-- **Status:** Running on http://localhost:3000
-- **State:** All components updated to use API
+- **Status:** Running on http://localhost:5173
+- **State:** All components using API with role-based access
 - **Features:** 
   - Toast notifications enabled
   - Loading states implemented
   - Error handling in place
+  - Role-based UI rendering
+  - Visual access control indicators
 
-### ⚠️ Backend (Express + MongoDB)
-- **Status:** Server code ready on port 5000
-- **Issue:** MongoDB not connected
-- **Action Needed:** Start MongoDB service
+### ✅ Backend (Express + MongoDB)
+- **Status:** Running on http://localhost:5000
+- **State:** Fully operational with role middleware
+- **Features:**
+  - MongoDB connected
+  - JWT authentication
+  - Role-based route protection
+  - User management endpoints
+  - CRUD operations for all entities
 
-## Next Steps to Get Everything Working
+## User Roles & Permissions
 
-### Option 1: Start MongoDB Service (Recommended)
+### Admin (Owner)
+- **Access Level**: Full system access
+- **Can Access**:
+  - ✅ Dashboard
+  - ✅ Teachers (create, read, update, delete, restore)
+  - ✅ Students (create, read, update, delete)
+  - ✅ Bookings (create, read, update, delete)
+  - ✅ Employees (create, read, update, delete) - **EXCLUSIVE**
+  - ✅ Analytics
+- **Special Permissions**:
+  - Create employee accounts
+  - Assign roles to employees
+  - View all system data
 
-Since you're using MongoDB Compass with local MongoDB:
+### Teacher Manager
+- **Access Level**: Teachers section only
+- **Can Access**:
+  - ✅ Teachers (create, read, update, delete, restore)
+- **Restricted From**:
+  - ❌ Dashboard
+  - ❌ Students
+  - ❌ Bookings
+  - ❌ Employees
+  - ❌ Analytics
 
-1. **Start MongoDB Service:**
-   ```powershell
-   # Check if MongoDB service is running
-   Get-Service -Name MongoDB
-   
-   # If not running, start it
-   Start-Service -Name MongoDB
-   ```
+### Booking Manager
+- **Access Level**: Bookings and Students sections
+- **Can Access**:
+  - ✅ Students (create, read, update, delete)
+  - ✅ Bookings (create, read, update, delete)
+- **Restricted From**:
+  - ❌ Dashboard
+  - ❌ Teachers
+  - ❌ Employees
+  - ❌ Analytics
 
-2. **Or start manually:**
-   - Open MongoDB Compass
-   - Connect to `mongodb://localhost:27017/`
-   - The connection should turn green
+## Getting Started
 
-3. **Restart Backend:**
-   - The server will auto-restart when MongoDB connects
-   - You should see: `✅ MongoDB Connected: localhost:27017`
+### 1. Start MongoDB
+```powershell
+# Check MongoDB service
+Get-Service -Name MongoDB
 
-### Option 2: Use MongoDB Atlas (Cloud)
+# Start if not running
+Start-Service -Name MongoDB
+```
 
-If local MongoDB isn't working, use cloud MongoDB:
+### 2. Start Backend Server
+```powershell
+cd "c:\Users\Kayeen Campana\LiynMar Online Tutorial Services\liynmar-app\server"
+node server.js
+```
 
-1. Follow the guide in `server/MONGODB_SETUP.md`
-2. Create free MongoDB Atlas account
-3. Get connection string
-4. Update `server/.env` with your connection string
+Expected output:
+```
+🚀 Server running on port 5000
+✅ MongoDB Connected: localhost:27017/liynmar-tutorial
+```
 
-## Testing the Application
+### 3. Start Frontend
+```powershell
+cd "c:\Users\Kayeen Campana\LiynMar Online Tutorial Services\liynmar-app\client"
+npm run dev
+```
 
-Once MongoDB is connected:
+### 4. Login as Admin
 
-### 1. Create Your First User
-1. Go to http://localhost:3000
-2. Click "Sign Up"
-3. Fill in:
-   - Full Name: Your Name
-   - Role: Admin (Owner)
-   - Email: your@email.com
-   - Password: (min 6 characters)
-4. Click "Create Account"
+**Default Admin Account:**
+- Email: `kayeencampana@gmail.com`
+- Password: `Admin@123`
+- Role: `admin` (Owner)
 
-### 2. Add Teachers
-1. Navigate to "Teachers" in sidebar
-2. Click "+ Add Teacher"
-3. Fill in teacher details with job experience
-4. Save
-
-### 3. Add Students
-1. Navigate to "Students" in sidebar
-2. Click "+ Add Student"
-3. Fill in student details
-4. Assign a teacher to the student
-
-### 4. View Dashboard
-- Dashboard will show real-time stats from MongoDB
+**To create/reset admin:**
+```powershell
+cd server
+node scripts/setupAdmin.js
+```
 - All data persists in the database
 
 ## Features Working
@@ -256,6 +291,208 @@ If you encounter any issues:
 2. Check backend terminal for error messages
 3. Verify MongoDB is running in Compass
 4. Check that .env file has correct MONGODB_URI
+
+---
+
+## Testing Role-Based Access
+
+### As Admin (Full Access)
+1. Login with admin credentials
+2. You should see all navigation items:
+   - ✅ Dashboard
+   - ✅ Teachers
+   - ✅ Students
+   - ✅ Bookings
+   - ✅ Employees
+   - ✅ Analytics
+3. All sections are clickable and accessible
+
+### As Teacher Manager
+1. Create a Teacher Manager account via Employees page
+2. Logout and login with new credentials
+3. You should see:
+   - 🔒 Dashboard (locked with icon)
+   - ✅ Teachers (accessible)
+   - 🔒 Students (locked)
+   - 🔒 Bookings (locked)
+   - 🔒 Employees (locked)
+   - 🔒 Analytics (locked)
+4. Only Teachers section is accessible
+
+### As Booking Manager
+1. Create a Booking Manager account via Employees page
+2. Logout and login with new credentials
+3. You should see:
+   - 🔒 Dashboard (locked)
+   - 🔒 Teachers (locked)
+   - ✅ Students (accessible)
+   - ✅ Bookings (accessible)
+   - 🔒 Employees (locked)
+   - 🔒 Analytics (locked)
+4. Only Students and Bookings are accessible
+
+---
+
+## Creating Employee Accounts (Admin Only)
+
+### Step-by-Step:
+
+1. **Login as Admin**
+2. **Navigate to "Employees"** in the sidebar
+3. **Click "+ Add Employee"** button
+4. **Fill in the form:**
+   ```
+   Full Name: John Doe
+   Email: johndoe@example.com
+   Contact Number: +63 912 345 6789
+   Password: SecurePass123
+   Role: Teacher Manager (or Booking Manager)
+   ```
+5. **Click "Create Employee"**
+6. **New employee can now login** with their email and password
+
+### Employee List Features:
+- **Filter by Role**: All, Teacher Manager, Booking Manager, Deleted
+- **View Profile**: Click eye icon (placeholder)
+- **Delete Employee**: Click trash icon (soft delete)
+- **Avatar**: Auto-generated from name initials
+
+---
+
+## API Routes & Protection
+
+### Authentication Routes (Public)
+```
+POST /api/auth/register - Register new user
+POST /api/auth/login    - Login user
+```
+
+### Authentication Routes (Protected)
+```
+GET    /api/auth/me           - Get current user
+GET    /api/auth/users        - Get all users (Admin only)
+DELETE /api/auth/users/:id    - Delete user (Admin only)
+```
+
+### Teacher Routes (Admin + Teacher Manager)
+```
+GET    /api/teachers          - Get all teachers
+POST   /api/teachers          - Create teacher
+GET    /api/teachers/:id      - Get teacher by ID
+PUT    /api/teachers/:id      - Update teacher
+DELETE /api/teachers/:id      - Soft delete
+PUT    /api/teachers/:id/restore - Restore deleted
+DELETE /api/teachers/:id/permanent - Permanently delete
+```
+
+### Student Routes (Admin + Booking Manager)
+```
+GET    /api/students          - Get all students
+POST   /api/students          - Create student
+GET    /api/students/:id      - Get student by ID
+PUT    /api/students/:id      - Update student
+DELETE /api/students/:id      - Delete student
+```
+
+### Booking Routes (Admin + Booking Manager)
+```
+GET    /api/bookings          - Get all bookings
+POST   /api/bookings          - Create booking
+GET    /api/bookings/:id      - Get booking by ID
+PUT    /api/bookings/:id      - Update booking
+DELETE /api/bookings/:id      - Delete booking
+```
+
+---
+
+## Security Implementation
+
+### Backend Middleware Stack
+```javascript
+// Route protection example
+router.get('/teachers', 
+  protect,                    // Verify JWT token
+  requireTeacherManager,      // Check role: admin or teacher_manager
+  getAllTeachers              // Controller function
+);
+```
+
+### Frontend Access Control
+```javascript
+// Sidebar.jsx - Role-based rendering
+const canAccess = (allowedRoles) => {
+  return allowedRoles.includes(user?.role);
+};
+
+// Visual lock for restricted items
+{!hasAccess && <i className="fas fa-lock lock-icon"></i>}
+```
+
+### User Schema (MongoDB)
+```javascript
+{
+  email: String (unique),
+  password: String (hashed with bcrypt),
+  fullName: String,
+  contactNumber: String,
+  role: 'admin' | 'teacher_manager' | 'booking_manager',
+  isActive: Boolean,
+  isDeleted: Boolean
+}
+```
+
+---
+
+## Troubleshooting
+
+### Issue: All nav items showing locked for admin
+**Solution:** 
+1. Clear browser localStorage
+2. Logout and login again
+3. Verify role field exists in localStorage currentUser object
+
+### Issue: 403 Forbidden when accessing routes
+**Solution:**
+1. Check if JWT token is being sent in headers
+2. Verify user role in database matches required role
+3. Check backend middleware is loaded correctly
+
+### Issue: Cannot create employee accounts
+**Solution:**
+1. Verify you're logged in as admin
+2. Check all required fields are filled
+3. Ensure email is unique (not already in use)
+
+### Issue: Employee cannot login after creation
+**Solution:**
+1. Verify employee account was created successfully
+2. Check password is at least 6 characters
+3. Use exact email address provided during creation
+
+---
+
+## Database Collections
+
+### users
+- Admin accounts
+- Teacher Manager accounts
+- Booking Manager accounts
+
+### teachers
+- Teacher profiles
+- Contact information
+- Job experience
+- Booking counts
+
+### students
+- Student profiles
+- Parent information
+- Academic details
+
+### bookings
+- Student-teacher assignments
+- Weekly schedules
+- Session tracking
 
 ---
 

@@ -16,25 +16,39 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is logged in on mount
-    const token = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('currentUser');
-    
-    if (token && storedUser) {
-      try {
-        // Set token in axios headers
-        authService.setAuthToken(token);
-        // Parse and set user data from localStorage
-        const userData = JSON.parse(storedUser);
-        setUser(userData);
-      } catch (error) {
-        console.error('Error loading user data:', error);
-        // Clear invalid data
-        localStorage.removeItem('token');
-        localStorage.removeItem('currentUser');
+    // Validate authentication with server on mount
+    const initAuth = async () => {
+      const token = localStorage.getItem('token');
+      
+      if (token) {
+        try {
+          // Set token in axios headers
+          authService.setAuthToken(token);
+          
+          // Always fetch fresh user data from server to validate token
+          const response = await authService.getProfile();
+          
+          if (response.status === 'success') {
+            const userData = response.data.user;
+            console.log('✅ User authenticated:', userData);
+            setUser(userData);
+          } else {
+            // Invalid token, clear auth
+            authService.logout();
+            setUser(null);
+          }
+        } catch (error) {
+          console.error('❌ Auth validation failed:', error);
+          // Clear invalid token
+          authService.logout();
+          setUser(null);
+        }
       }
-    }
-    setLoading(false);
+      
+      setLoading(false);
+    };
+
+    initAuth();
   }, []);
 
   const login = async (email, password) => {

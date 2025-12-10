@@ -1,11 +1,13 @@
 # 🎓 LIYNMAR Online Tutorial Services
 
-## Complete Tutorial Management System
+## Complete Tutorial Management System with Role-Based Access Control
 
-A comprehensive web application for managing teachers, students, bookings, sessions, and revenue tracking for LIYNMAR Online Tutorial Services.
+A comprehensive web application for managing teachers, students, bookings, sessions, and revenue tracking for LIYNMAR Online Tutorial Services with multi-user access control.
 
 ![Status](https://img.shields.io/badge/Status-Complete-success)
 ![React](https://img.shields.io/badge/React-18-blue)
+![Node.js](https://img.shields.io/badge/Node.js-Express-green)
+![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
 ---
@@ -16,10 +18,26 @@ A comprehensive web application for managing teachers, students, bookings, sessi
 - **[FEATURES.md](./liynmar-app/FEATURES.md)** - Complete Feature Documentation
 - **[SESSION_STATUS_GUIDE.md](./liynmar-app/SESSION_STATUS_GUIDE.md)** - Status Code Reference
 - **[IMPLEMENTATION_SUMMARY.md](./liynmar-app/IMPLEMENTATION_SUMMARY.md)** - What Was Built
+- **[DATABASE_STRUCTURE.md](./liynmar-app/DATABASE_STRUCTURE.md)** - Database Schema
+- **[API_MIGRATION_COMPLETE.md](./liynmar-app/API_MIGRATION_COMPLETE.md)** - API Documentation
 
 ---
 
 ## ✨ Features at a Glance
+
+### 🔐 Role-Based Access Control (NEW!)
+- **Admin (Owner)**: Full system access
+- **Teacher Manager**: Manages teacher profiles and information
+- **Booking Manager**: Handles bookings and student management
+- Visual lock indicators for restricted sections
+- Secure backend middleware protection
+
+### 👥 Employee Management (NEW!)
+- Create and manage employee accounts
+- Assign specific roles with limited access
+- View all employees in organized table
+- Filter by role type (Teacher Manager, Booking Manager)
+- Track deleted accounts
 
 ### 📊 Dashboard
 - Comprehensive analytics with 4 interactive graphs
@@ -34,6 +52,7 @@ A comprehensive web application for managing teachers, students, bookings, sessi
 - Interactive session status management (C/A/P/T/S/N)
 - Automatic earnings calculation with company share
 - Active/Inactive status tracking
+- Soft delete with restore functionality
 
 ### 📅 Booking System
 - Flexible booking form with real-time summary
@@ -41,6 +60,12 @@ A comprehensive web application for managing teachers, students, bookings, sessi
 - Student and parent information capture
 - Weekly total calculation
 - Seamless integration with teacher profiles
+
+### 🎓 Students Management
+- Comprehensive student profiles
+- Parent/Guardian information tracking
+- Academic progress monitoring
+- Teacher assignment tracking
 
 ### 🔍 Smart Search
 - Context-aware search across all pages

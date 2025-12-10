@@ -1,15 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import authService from '../services/authService';
+import { useAuth } from '../context/AuthContext';
 import './Auth.css';
 
-const Auth = ({ onLoginSuccess }) => {
+const Auth = () => {
   const [showSignIn, setShowSignIn] = useState(false);
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [activeSection, setActiveSection] = useState('home');
+  const { login } = useAuth();
   
   const [signInData, setSignInData] = useState({
     email: '',
@@ -35,28 +36,17 @@ const Auth = ({ onLoginSuccess }) => {
 
     setLoading(true);
     try {
-      // TEMPORARY: Skip API call if backend is down
-      try {
-        await authService.login({
-          email: signInData.email,
-          password: signInData.password
-        });
-        toast.success('Logged in successfully!');
-      } catch (error) {
-        // If API fails, use temporary bypass
-        if (error.code === 'ERR_NETWORK' || error.message.includes('Network Error')) {
-          toast.warning('Backend offline - using demo mode');
-          localStorage.setItem('token', 'demo-token');
-          localStorage.setItem('currentUser', JSON.stringify({ email: signInData.email }));
-        } else {
-          throw error;
-        }
-      }
+      const result = await login(signInData.email, signInData.password);
       
-      if (onLoginSuccess) onLoginSuccess();
-      navigate('/dashboard');
+      if (result.success) {
+        toast.success('Logged in successfully!');
+        navigate('/dashboard');
+      } else {
+        toast.error(result.error || 'Invalid email or password');
+      }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Invalid email or password');
+      toast.error('An error occurred during login');
+      console.error('Login error:', error);
     } finally {
       setLoading(false);
     }

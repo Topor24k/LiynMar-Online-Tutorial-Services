@@ -1,13 +1,58 @@
 # Database Structure - LiynMar Tutorial Services
 
 ## Overview
-This document outlines the complete MongoDB database structure for the LiynMar Online Tutorial Services application.
+This document outlines the complete MongoDB database structure for the LiynMar Online Tutorial Services application with role-based access control.
 
 ---
 
 ## Collections
 
-### 1. Teachers Collection
+### 1. Users Collection (NEW!)
+
+**Purpose**: Stores employee/user accounts with role-based access control.
+
+**Schema Fields**:
+- `email` (String, Required, Unique) - User's email address for login
+- `password` (String, Required) - Hashed password (bcrypt)
+- `fullName` (String, Required) - User's full name
+- `contactNumber` (String, Required) - User's contact number
+- `role` (String, Enum: ['admin', 'teacher_manager', 'booking_manager'], Default: 'admin') - User role
+- `createdBy` (ObjectId, Ref: 'User') - Reference to the admin who created this user
+- `isActive` (Boolean, Default: true) - Active status
+- `isDeleted` (Boolean, Default: false) - Soft delete flag
+- `deletedAt` (Date) - Timestamp when deleted
+- `createdAt` (Date) - Auto-generated timestamp
+- `updatedAt` (Date) - Auto-generated timestamp
+
+**Role Definitions**:
+- `admin`: Full system access (Dashboard, Teachers, Students, Bookings, Employees, Analytics)
+- `teacher_manager`: Can only access Teachers section
+- `booking_manager`: Can access Bookings and Students sections
+
+**Security**:
+- Passwords hashed with bcrypt (salt rounds: 10)
+- JWT tokens for authentication
+- Role-based middleware protection on all routes
+
+**Example Document**:
+```json
+{
+  "_id": "693826bdfd8db79e535191fd",
+  "email": "kayeencampana@gmail.com",
+  "password": "$2b$10$hashed_password_here",
+  "fullName": "Kayeen Campaña",
+  "contactNumber": "+63 123 456 7890",
+  "role": "admin",
+  "isActive": true,
+  "isDeleted": false,
+  "createdAt": "2024-12-09T08:00:00.000Z",
+  "updatedAt": "2024-12-09T08:00:00.000Z"
+}
+```
+
+---
+
+### 2. Teachers Collection
 
 **Purpose**: Stores teacher profiles with their professional information.
 

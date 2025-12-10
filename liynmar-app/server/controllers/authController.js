@@ -15,10 +15,13 @@ export const register = async (req, res) => {
   try {
     const { email, password, fullName, contactNumber, role } = req.body;
 
-    // Check if user already exists
-    const userExists = await User.findOne({ email });
+    console.log('📝 Registration attempt:', { email, fullName, contactNumber, role });
+
+    // Check if user already exists (excluding soft-deleted users)
+    const userExists = await User.findOne({ email, isDeleted: false });
     
     if (userExists) {
+      console.log('❌ User already exists:', email);
       return res.status(400).json({
         status: 'error',
         message: 'User already exists'
@@ -39,8 +42,12 @@ export const register = async (req, res) => {
       userData.createdBy = req.user._id;
     }
 
+    console.log('✅ Creating user with data:', { ...userData, password: '[HIDDEN]' });
+
     // Create user
     const user = await User.create(userData);
+
+    console.log('✅ User created successfully:', user._id);
 
     res.status(201).json({
       status: 'success',
@@ -56,6 +63,8 @@ export const register = async (req, res) => {
       }
     });
   } catch (error) {
+    console.error('❌ Registration error:', error.message);
+    console.error('Error details:', error);
     res.status(400).json({
       status: 'error',
       message: error.message
@@ -70,8 +79,8 @@ export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Find user and include password
-    const user = await User.findOne({ email }).select('+password');
+    // Find user and include password (exclude deleted users)
+    const user = await User.findOne({ email, isDeleted: false }).select('+password');
     
     if (!user) {
       return res.status(401).json({
@@ -128,7 +137,17 @@ export const getProfile = async (req, res) => {
     
     res.status(200).json({
       status: 'success',
-      data: user
+      data: {
+        user: {
+          _id: user._id,
+          email: user.email,
+          fullName: user.fullName,
+          contactNumber: user.contactNumber,
+          role: user.role,
+          isActive: user.isActive,
+          isDeleted: user.isDeleted
+        }
+      }
     });
   } catch (error) {
     res.status(500).json({

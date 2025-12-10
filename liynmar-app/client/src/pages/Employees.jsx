@@ -31,11 +31,16 @@ const Employees = () => {
     setLoading(true);
     try {
       const response = await authService.getAllUsers();
+      console.log('getAllUsers response:', response);
       const allUsers = response.data || [];
+      console.log('All users:', allUsers);
       
       // Filter out admins and current user, separate deleted employees
       const active = allUsers.filter(u => u.role !== 'admin' && !u.isDeleted);
       const deleted = allUsers.filter(u => u.role !== 'admin' && u.isDeleted);
+      
+      console.log('Active employees:', active);
+      console.log('Deleted employees:', deleted);
       
       setEmployees(active);
       setDeletedEmployees(deleted);
@@ -56,7 +61,7 @@ const Employees = () => {
     }
 
     try {
-      await authService.register({
+      const response = await authService.register({
         fullName: newEmployee.fullName,
         email: newEmployee.email,
         contactNumber: newEmployee.contactNumber,
@@ -64,6 +69,7 @@ const Employees = () => {
         role: newEmployee.role
       });
       
+      console.log('Employee created:', response);
       toast.success('Employee created successfully');
       setShowAddModal(false);
       setNewEmployee({
@@ -75,8 +81,12 @@ const Employees = () => {
       });
       fetchEmployees();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to create employee');
       console.error('Error creating employee:', error);
+      console.error('Error response:', error.response);
+      console.error('Error response data:', error.response?.data);
+      console.error('Error response status:', error.response?.status);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to create employee';
+      toast.error(errorMessage);
     }
   };
 

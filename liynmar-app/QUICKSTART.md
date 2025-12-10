@@ -1,30 +1,84 @@
 # LiynMar Tutorial Services - Quick Start Guide
 
-## Running the Application
-
-### Prerequisites
+## Prerequisites
 - Node.js (v14 or higher)
+- MongoDB (Local or Atlas)
 - npm or yarn
 
-### Installation & Setup
+---
 
-1. **Navigate to the client directory:**
+## Running the Application
+
+### 1. Backend Setup (Server)
+
+**Navigate to server directory:**
 ```powershell
-cd "c:\Users\Kayeen Campana\LiynMar Online Tutorial Services\liynmar-app\client"
+cd "c:\Users\Kayeen Campana\LiynMar Online Tutorial Services\liynmar-app\server"
 ```
 
-2. **Install dependencies:**
+**Install dependencies:**
 ```powershell
 npm install
 ```
 
-3. **Start the development server:**
+**Setup MongoDB:**
+- Option A: Local MongoDB - Ensure MongoDB service is running
+- Option B: MongoDB Atlas - See `server/MONGODB_SETUP.md`
+
+**Create .env file:**
+```env
+MONGODB_URI=mongodb://localhost:27017/liynmar-tutorial
+JWT_SECRET=your-secret-key-here
+PORT=5000
+```
+
+**Create Admin Account:**
+```powershell
+node scripts/setupAdmin.js
+```
+
+**Default Admin Credentials:**
+- Email: kayeencampana@gmail.com
+- Password: Admin@123
+
+**Start the server:**
+```powershell
+node server.js
+```
+
+Server should run on `http://localhost:5000`
+
+---
+
+### 2. Frontend Setup (Client)
+
+**Navigate to client directory:**
+```powershell
+cd "c:\Users\Kayeen Campana\LiynMar Online Tutorial Services\liynmar-app\client"
+```
+
+**Install dependencies:**
+```powershell
+npm install
+```
+
+**Start the development server:**
 ```powershell
 npm run dev
 ```
 
-4. **Open your browser:**
-Navigate to `http://localhost:5173` (or the port shown in terminal)
+**Open your browser:**
+Navigate to `http://localhost:5173`
+
+---
+
+## First Time Login
+
+1. **Go to**: http://localhost:5173
+2. **Login with**:
+   - Email: `kayeencampana@gmail.com`
+   - Password: `Admin@123`
+3. **You will have full admin access to all features**
 
 ---
 
@@ -37,31 +91,83 @@ liynmar-app/
 │   │   ├── components/
 │   │   │   └── Layout/
 │   │   │       ├── Header.jsx        # Top navigation with search
-│   │   │       ├── Sidebar.jsx       # Side navigation menu
+│   │   │       ├── Sidebar.jsx       # Side nav with role-based locks
 │   │   │       └── *.css
 │   │   ├── pages/
+│   │   │   ├── Auth.jsx              # Login/Register page
 │   │   │   ├── Dashboard.jsx         # Main dashboard with graphs
 │   │   │   ├── Teachers.jsx          # Teachers list table
 │   │   │   ├── TeacherProfile.jsx    # Individual teacher profile
+│   │   │   ├── Students.jsx          # Students management
 │   │   │   ├── Bookings.jsx          # Booking management
+│   │   │   ├── Employees.jsx         # Employee management (NEW!)
 │   │   │   └── *.css
 │   │   ├── services/
+│   │   │   ├── authService.js        # Authentication API
 │   │   │   ├── teacherService.js     # Teacher API calls
+│   │   │   ├── studentService.js     # Student API calls
 │   │   │   └── bookingService.js     # Booking API calls
 │   │   ├── context/
-│   │   │   └── AuthContext.jsx       # Authentication context
-│   │   ├── App.jsx                   # Main app component
+│   │   │   └── AuthContext.jsx       # Auth context with role
+│   │   ├── App.jsx                   # Main app with routes
 │   │   └── main.jsx                  # Entry point
 │   └── package.json
-└── server/                            # Backend (to be implemented)
+├── server/
+│   ├── config/
+│   │   └── database.js               # MongoDB connection
+│   ├── controllers/
+│   │   ├── authController.js         # Auth logic
+│   │   ├── teacherController.js      # Teacher CRUD
+│   │   ├── studentController.js      # Student CRUD
+│   │   └── bookingController.js      # Booking CRUD
+│   ├── middleware/
+│   │   ├── authMiddleware.js         # JWT verification
+│   │   └── roleMiddleware.js         # Role-based access (NEW!)
+│   ├── models/
+│   │   ├── User.js                   # User schema with roles (NEW!)
+│   │   ├── Teacher.js                # Teacher schema
+│   │   ├── Student.js                # Student schema
+│   │   └── Booking.js                # Booking schema
+│   ├── routes/
+│   │   ├── authRoutes.js             # Auth endpoints
+│   │   ├── teacherRoutes.js          # Teacher endpoints
+│   │   ├── studentRoutes.js          # Student endpoints
+│   │   └── bookingRoutes.js          # Booking endpoints
+│   ├── scripts/
+│   │   └── setupAdmin.js             # Admin setup script
+│   ├── server.js                     # Express server
+│   └── package.json
+└── README.md
 ```
 
 ---
 
 ## Key Features Implemented
 
-### ✅ 1. Dashboard
-- **Location**: `/dashboard`
+### ✅ 1. Role-Based Access Control (NEW!)
+- **Location**: Entire application
+- **Roles**:
+  - **Admin (Owner)**: Full access to all sections
+  - **Teacher Manager**: Limited to Teachers section
+  - **Booking Manager**: Limited to Bookings and Students sections
+- **Features**:
+  - Backend middleware protection
+  - Frontend visual locks
+  - JWT authentication
+  - Secure role validation
+
+### ✅ 2. Employee Management (NEW!)
+- **Location**: `/employees` (Admin only)
+- **Features**:
+  - Create employee accounts
+  - Assign roles (Teacher Manager/Booking Manager)
+  - View all employees in table
+  - Filter by role type
+  - Soft delete with tracking
+  - Role-based access descriptions
+
+### ✅ 3. Dashboard
+- **Location**: `/dashboard` (Admin only)
 - **Features**:
   - Metric cards with Week/Month/Year filters
   - Revenue trend graph
@@ -69,15 +175,35 @@ liynmar-app/
   - Most booked subjects bar chart
   - Top 10 teachers ranked list
 
-### ✅ 2. Teachers Management
-- **Location**: `/teachers`
+### ✅ 4. Teachers Management
+- **Location**: `/teachers` (Admin + Teacher Manager)
 - **Features**:
-  - Complete teacher list
+  - Complete teacher list with filters
+  - Add/Edit/Delete teachers
   - Search functionality
   - Active/Inactive status
+  - Soft delete with restore
+  - Job experience tracking
   - Click to view detailed profile
 
-### ✅ 3. Teacher Profile
+### ✅ 5. Students Management
+- **Location**: `/students` (Admin + Booking Manager)
+- **Features**:
+  - Student profiles
+  - Parent/Guardian information
+  - Academic tracking
+  - Teacher assignments
+  - Search and filter
+
+### ✅ 6. Bookings Management
+- **Location**: `/bookings` (Admin + Booking Manager)
+- **Features**:
+  - Create new bookings
+  - Weekly schedule management
+  - Student-teacher assignments
+  - Real-time booking summary
+
+### ✅ 7. Teacher Profile
 - **Location**: `/teachers/:id`
 - **Features**:
   - Contact information display
@@ -90,14 +216,92 @@ liynmar-app/
   - Company share calculation (25%)
   - Week navigation
 
-### ✅ 4. Booking System
-- **Location**: `/bookings`
-- **Features**:
-  - Available teachers list
-  - Comprehensive booking form with:
-    - Student information
-    - Parent/Guardian information
-    - Session details
+---
+
+## User Roles & Access
+
+### Admin (Owner)
+```
+✅ Dashboard
+✅ Teachers (full CRUD)
+✅ Students (full CRUD)
+✅ Bookings (full CRUD)
+✅ Employees (exclusive access)
+✅ Analytics
+```
+
+### Teacher Manager
+```
+❌ Dashboard (locked)
+✅ Teachers (full CRUD)
+❌ Students (locked)
+❌ Bookings (locked)
+❌ Employees (locked)
+❌ Analytics (locked)
+```
+
+### Booking Manager
+```
+❌ Dashboard (locked)
+❌ Teachers (locked)
+✅ Students (full CRUD)
+✅ Bookings (full CRUD)
+❌ Employees (locked)
+❌ Analytics (locked)
+```
+
+---
+
+## Creating Employee Accounts
+
+**As Admin:**
+
+1. Navigate to "Employees" in sidebar
+2. Click "+ Add Employee"
+3. Fill in the form:
+   - Full Name
+   - Email Address (must be unique)
+   - Contact Number
+   - Password (min 6 characters)
+   - Role: Select "Teacher Manager" or "Booking Manager"
+4. Click "Create Employee"
+
+**Note**: The new employee can now login with their email and password, and they will only see the sections they have access to.
+
+---
+
+## API Endpoints
+
+### Authentication
+- `POST /api/auth/register` - Register new user
+- `POST /api/auth/login` - Login user
+- `GET /api/auth/me` - Get current user
+- `GET /api/auth/users` - Get all users (Admin only)
+- `DELETE /api/auth/users/:id` - Delete user (Admin only)
+
+### Teachers (Protected: Admin + Teacher Manager)
+- `GET /api/teachers` - Get all teachers
+- `POST /api/teachers` - Create teacher
+- `GET /api/teachers/:id` - Get teacher by ID
+- `PUT /api/teachers/:id` - Update teacher
+- `DELETE /api/teachers/:id` - Soft delete teacher
+- `PUT /api/teachers/:id/restore` - Restore deleted teacher
+
+### Students (Protected: Admin + Booking Manager)
+- `GET /api/students` - Get all students
+- `POST /api/students` - Create student
+- `GET /api/students/:id` - Get student by ID
+- `PUT /api/students/:id` - Update student
+- `DELETE /api/students/:id` - Delete student
+
+### Bookings (Protected: Admin + Booking Manager)
+- `GET /api/bookings` - Get all bookings
+- `POST /api/bookings` - Create booking
+- `GET /api/bookings/:id` - Get booking by ID
+- `PUT /api/bookings/:id` - Update booking
+- `DELETE /api/bookings/:id` - Delete booking
+
+---
     - **Flexible weekly schedule**:
       - Different times per day
       - Different durations per day (30 mins to 2 hours)

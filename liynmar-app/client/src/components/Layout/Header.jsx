@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { getLocalStorage } from '../../utils/helpers';
+import { useAuth } from '../../context/AuthContext';
 import './Header.css';
 
 const Header = ({ onMenuClick, onSearch, sidebarOpen = true }) => {
@@ -9,16 +9,30 @@ const Header = ({ onMenuClick, onSearch, sidebarOpen = true }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
+  const { user, logout } = useAuth();
 
-  // Get current user
-  const getCurrentUser = () => {
-    const user = localStorage.getItem('currentUser');
-    return user ? JSON.parse(user) : {};
+  // Get user display info
+  const getUserName = () => {
+    if (!user) return 'User';
+    return user.fullName || user.username || user.email?.split('@')[0] || 'User';
   };
 
-  const currentUser = getCurrentUser();
-  const userName = currentUser.username || currentUser.fullName || currentUser.email?.split('@')[0] || 'User';
-  const userRole = currentUser.role === 'admin' ? 'Admin' : 'User';
+  const getUserRole = () => {
+    if (!user) return 'User';
+    switch (user.role) {
+      case 'admin':
+        return 'Administrator';
+      case 'teacher_manager':
+        return 'Teacher Manager';
+      case 'booking_manager':
+        return 'Booking Manager';
+      default:
+        return 'User';
+    }
+  };
+
+  const userName = getUserName();
+  const userRole = getUserRole();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -61,8 +75,8 @@ const Header = ({ onMenuClick, onSearch, sidebarOpen = true }) => {
 
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to logout?')) {
-      localStorage.removeItem('currentUser');
-      window.location.href = '/auth';
+      logout();
+      navigate('/auth');
     }
   };
 

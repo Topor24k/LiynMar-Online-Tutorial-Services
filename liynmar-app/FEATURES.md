@@ -1,7 +1,89 @@
 # LiynMar Online Tutorial Services - Features Documentation
 
 ## Overview
-This is a comprehensive tutorial management system for tracking teachers, students, bookings, and revenue.
+This is a comprehensive tutorial management system with role-based access control for tracking teachers, students, bookings, and revenue.
+
+---
+
+## 🔐 ROLE-BASED ACCESS CONTROL SYSTEM (NEW!)
+
+### User Roles
+
+#### 1. **Admin (Owner)**
+- **Full System Access**: Can access all features
+- **Accessible Sections**:
+  - Dashboard
+  - Teachers Management
+  - Students Management
+  - Bookings Management
+  - Employee Management (exclusive)
+  - Analytics
+- **Special Permissions**:
+  - Create/manage employee accounts
+  - Assign roles to employees
+  - View all system data
+  - Delete and restore records
+
+#### 2. **Teacher Manager**
+- **Limited Access**: Teachers section only
+- **Accessible Sections**:
+  - Teachers Management (full CRUD access)
+- **Restricted Sections** (locked with visual indicator):
+  - Dashboard
+  - Students
+  - Bookings
+  - Employees
+  - Analytics
+
+#### 3. **Booking Manager**
+- **Limited Access**: Bookings and Students sections
+- **Accessible Sections**:
+  - Bookings Management (full CRUD access)
+  - Students Management (full CRUD access)
+- **Restricted Sections** (locked with visual indicator):
+  - Dashboard
+  - Teachers
+  - Employees
+  - Analytics
+
+### Security Features
+- **Backend Middleware Protection**: Routes protected by role-checking middleware
+- **Frontend Access Control**: Visual locks on restricted navigation items
+- **JWT Authentication**: Secure token-based authentication
+- **Role Validation**: Server-side role verification for all API requests
+
+---
+
+## 👥 EMPLOYEE MANAGEMENT (NEW!)
+
+### Features
+- **Admin-Only Access**: Only administrators can manage employees
+- **Create Employee Accounts**: Add new employees with specific roles
+- **Role Assignment**: Assign Teacher Manager or Booking Manager roles
+- **Employee List Table**:
+  - Name with avatar
+  - Contact Number
+  - Email Address
+  - Role Badge (color-coded)
+  - Actions (View Profile, Delete)
+
+### Filter Tabs
+1. **All**: Shows all active employees
+2. **Teacher Manager**: Filter by Teacher Manager role
+3. **Booking Manager**: Filter by Booking Manager role
+4. **Deleted Accounts**: View soft-deleted employee accounts
+
+### Employee Form
+Required fields:
+- Full Name
+- Email Address (unique)
+- Contact Number
+- Password (minimum 6 characters)
+- Role Selection (Teacher Manager / Booking Manager)
+
+### Role Descriptions
+- **Teacher Manager**: Can only access Teachers section
+- **Booking Manager**: Can access Bookings and Students sections
 
 ---
 
@@ -17,11 +99,18 @@ This is a comprehensive tutorial management system for tracking teachers, studen
   - Responsive design for mobile
 
 ### 2. SIDEBAR NAVIGATION
-- Dashboard
-- Teachers
-- Bookings
-- Analytics
+- Dashboard (🔒 Admin only)
+- Teachers (🔒 Admin + Teacher Manager)
+- Students (🔒 Admin + Booking Manager)
+- Bookings (🔒 Admin + Booking Manager)
+- Employees (🔒 Admin only)
+- Analytics (🔒 Admin only)
 - Settings (future implementation)
+
+**Lock Indicators**: 
+- Visual lock icons appear for restricted sections
+- Locked items show in reduced opacity
+- Hover displays "Access Restricted" message
 
 ---
 
